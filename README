@@ -54,17 +54,21 @@ Discovering devices
 
 To discover BLE devices, use the `DiscoveryService` provided. You need
 to create an instance of it, indicating the Bluetooth device you want
-to use (if not given, it will use 'hci0' by default). Then call the
-method `discover`, with a timeout. It will return a dictionary with
-the address and name of all devices that responded the discovery. As
-example:
+to use. Then call the method `discover`, with a timeout. It will
+return a dictionary with the address and name of all devices that
+responded the discovery.
+
+**Note**: it is very likely that you will need admin permissions to do
+a discovery, so run this script using `sudo` (or something similar).
+
+As example:
 
     from gattlib import DiscoveryService
 
-    service = DiscoveryService()
+    service = DiscoveryService("hci0")
     devices = service.discover(2)
 
-    for addr, name in devices.items():
+    for address, name in devices.items():
         print "name: {}, address: {}".format(name, address)
 
 Reading data
@@ -77,8 +81,8 @@ either by its handle or by its UUID. For example:
     from gattlib import GATTRequester
 
     req = GATTRequester("00:11:22:33:44:55")
-    name = req.read_by_uuid("00002a00-0000-1000-8000-00805f9b34fb")
-    steps = req.read_by_handle(0x15)
+    name = req.read_by_uuid("00002a00-0000-1000-8000-00805f9b34fb")[0]
+    steps = req.read_by_handle(0x15)[0]
 
 Reading data asynchronously
 --------------------------
@@ -100,8 +104,8 @@ The following is an example of response waiting:
     response = GATTResponse()
 
     req.read_by_handle_async(0x15, response)
-    response.wait()
-    steps = response.received()
+    response.wait(10)
+    steps = response.received()[0]
 
 And then, an example that inherits from GATTResponse to be notified
 when the response arrives:

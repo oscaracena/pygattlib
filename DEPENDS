@@ -1,0 +1,5 @@
+pkg-config
+libboost-python-dev
+libboost-thread-dev
+libbluetooth-dev
+libglib2.0-dev
