@@ -9,6 +9,10 @@ glib_headers = subprocess.check_output("pkg-config --cflags glib-2.0".split())
 glib_headers = glib_headers.strip().split("-I")
 glib_headers = [x.strip() for x in glib_headers if x]
 
+glib_libs = subprocess.check_output("pkg-config --libs glib-2.0".split())
+glib_libs = glib_libs.strip().split("-l")
+glib_libs = [x.strip() for x in glib_libs if x]
+
 setup(
     name = 'gattlib',
     version = '0.20141222',
@@ -31,10 +35,15 @@ setup(
              'src/bluez/src/shared/crypto.c',
              'src/bluez/src/log.c',
              'src/bluez/btio/btio.c'],
-            libraries = ["boost_python", "boost_thread", "bluetooth"],
+
+            libraries = glib_libs + [
+                "boost_python", "boost_thread", "bluetooth"
+            ],
+
             include_dirs = glib_headers + [
                 'src/bluez',
             ],
+
             define_macros = [('VERSION', '"5.25"')],
         )
     ],
