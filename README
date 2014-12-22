@@ -104,7 +104,9 @@ The following is an example of response waiting:
     response = GATTResponse()
 
     req.read_by_handle_async(0x15, response)
-    response.wait(10)
+    while not response.received():
+        time.sleep(0.1)
+
     steps = response.received()[0]
 
 And then, an example that inherits from GATTResponse to be notified
