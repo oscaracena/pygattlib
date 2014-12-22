@@ -50,10 +50,10 @@ void connect_cb(GIOChannel* channel, GError* err, gpointer user_data);
 
 class GATTRequester {
 public:
-	GATTRequester(std::string address);
+	GATTRequester(std::string address, bool do_connect=true);
 	~GATTRequester();
 
-	void wait_connection();
+	void connect(bool wait=false);
 	void read_by_handle_async(uint16_t handle, GATTResponse* response);
 	boost::python::list read_by_handle(uint16_t handle);
 	void read_by_uuid_async(std::string uuid, GATTResponse* response);
@@ -65,6 +65,12 @@ public:
 
 private:
 	void check_channel();
+
+	enum State {
+		STATE_DISCONNECTED,
+		STATE_CONNECTING,
+		STATE_CONNECTED,
+	} _state;
 
 	std::string _address;
 	GIOChannel* _channel;

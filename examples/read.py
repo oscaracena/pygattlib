@@ -10,7 +10,7 @@ from gattlib import GATTRequester
 
 class Reader(object):
     def __init__(self, address):
-        self.requester = GATTRequester(address)
+        self.requester = GATTRequester(address, False)
         self.connect()
         self.request_data()
 
@@ -18,7 +18,7 @@ class Reader(object):
         print "Connecting...",
         sys.stdout.flush()
 
-        self.requester.wait_connection()
+        self.requester.connect(True)
         print "OK!"
 
     def request_data(self):

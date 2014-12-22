@@ -64,6 +64,27 @@ GATTResponse::received() {
     return _data;
 }
 
+GATTRequester::GATTRequester(std::string address, bool do_connect) :
+	_state(STATE_DISCONNECTED),
+    _address(address),
+	_channel(NULL),
+	_attrib(NULL) {
+
+	if (do_connect)
+		connect();
+}
+
+GATTRequester::~GATTRequester() {
+	if (_channel != NULL) {
+		g_io_channel_shutdown(_channel, TRUE, NULL);
+		g_io_channel_unref(_channel);
+	}
+
+	if (_attrib != NULL) {
+		g_attrib_unref(_attrib);
+	}
+}
+
 void
 connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 	if (err) {
@@ -91,17 +112,19 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 
 	GATTRequester* request = (GATTRequester*)userp;
 	request->_attrib = g_attrib_new(channel, mtu);
+	request->_state = GATTRequester::STATE_CONNECTED;
 }
 
-GATTRequester::GATTRequester(std::string address) :
-    _address(address),
-	_channel(NULL),
-	_attrib(NULL) {
+void
+GATTRequester::connect(bool wait) {
+	if (_state != STATE_DISCONNECTED)
+		throw std::runtime_error("Already connecting or connected");
+	_state = STATE_CONNECTING;
 
 	GError *gerr = NULL;
 	_channel = gatt_connect
 		("hci0",           // 'hciX'
-		 address.c_str(),  // 'mac address'
+		 _address.c_str(), // 'mac address'
 		 "public",         // 'public' '[public | random]'
 		 "low",            // 'low' '[low | medium | high]'
 		 0,                // 0, int
@@ -114,22 +137,9 @@ GATTRequester::GATTRequester(std::string address) :
 	 	g_error_free(gerr);
 		throw std::runtime_error(gerr->message);
 	}
-}
 
-GATTRequester::~GATTRequester() {
-	if (_channel != NULL) {
-		g_io_channel_shutdown(_channel, TRUE, NULL);
-		g_io_channel_unref(_channel);
-	}
-
-	if (_attrib != NULL) {
-		g_attrib_unref(_attrib);
-	}
-}
-
-void
-GATTRequester::wait_connection() {
-	check_channel();
+	if (wait)
+		check_channel();
 }
 
 static void

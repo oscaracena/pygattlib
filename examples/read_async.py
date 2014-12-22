@@ -11,7 +11,7 @@ from gattlib import GATTRequester, GATTResponse
 
 class AsyncReader(object):
     def __init__(self, address):
-        self.requester = GATTRequester(address)
+        self.requester = GATTRequester(address, False)
         self.response = GATTResponse()
 
         self.connect()
@@ -22,7 +22,7 @@ class AsyncReader(object):
         print "Connecting...",
         sys.stdout.flush()
 
-        self.requester.wait_connection()
+        self.requester.connect(True)
         print "OK!"
 
     def request_data(self):
