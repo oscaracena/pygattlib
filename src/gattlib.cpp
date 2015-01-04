@@ -47,8 +47,14 @@ GATTResponse::notify(uint8_t status) {
 
 bool
 GATTResponse::wait(uint16_t timeout) {
+	std::cout << " - wait called" << std::endl;
+	std::cout.flush();
+
     if (not _event.wait(timeout))
 		return false;
+
+	std::cout << " - wait exited as true" << std::endl;
+	std::cout.flush();
 
     if (_status != 0) {
 		std::string msg = "Characteristic value/descriptor operation failed: ";
@@ -140,6 +146,11 @@ GATTRequester::connect(bool wait) {
 
 	if (wait)
 		check_channel();
+}
+
+bool
+GATTRequester::is_connected() {
+	return _state == STATE_CONNECTED;
 }
 
 static void
@@ -238,14 +249,19 @@ GATTRequester::write_by_handle_async(uint16_t handle, std::string data,
 
 boost::python::list
 GATTRequester::write_by_handle(uint16_t handle, std::string data) {
+	std::cout << " - write by handle" << std::endl;
+
 	GATTResponse response;
 	write_by_handle_async(handle, data, &response);
 
+	std::cout << " - write done" << std::endl;
 	if (not response.wait(MAX_WAIT_FOR_PACKET))
 		// FIXME: now, response is deleted, but is still registered on
 		// GLIB as callback!!
 		throw std::runtime_error("Device is not responding!");
 
+	std::cout << " - response received" << std::endl;
+	std::cout.flush();
 	return response.received();
 }
 

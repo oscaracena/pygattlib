@@ -38,6 +38,7 @@ BOOST_PYTHON_MODULE(gattlib) {
 
 	class_<GATTRequester>("GATTRequester", init<std::string, optional<bool> >())
 		.def("connect", &GATTRequester::connect)
+		.def("is_connected", &GATTRequester::is_connected)
 		.def("read_by_handle", &GATTRequester::read_by_handle)
 		.def("read_by_handle_async", &GATTRequester::read_by_handle_async)
 		.def("read_by_uuid", &GATTRequester::read_by_uuid)

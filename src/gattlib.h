@@ -54,6 +54,7 @@ public:
 	~GATTRequester();
 
 	void connect(bool wait=false);
+	bool is_connected();
 	void read_by_handle_async(uint16_t handle, GATTResponse* response);
 	boost::python::list read_by_handle(uint16_t handle);
 	void read_by_uuid_async(std::string uuid, GATTResponse* response);
