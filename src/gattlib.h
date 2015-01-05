@@ -77,7 +77,9 @@ private:
 		STATE_CONNECTED,
 	} _state;
 
+	std::string _device;
 	std::string _address;
+	int _hci_socket;
 	GIOChannel* _channel;
 	GAttrib* _attrib;
 };

@@ -12,9 +12,6 @@ public:
     }
 
     void set() {
-		// std::cout << " + set on event" << std::endl;
-		// std::cout.flush();
-
 		{
 			boost::lock_guard<boost::mutex> lock(_mutex);
 			_flag = true;
@@ -33,17 +30,10 @@ public:
 			return _flag;
 
 		boost::unique_lock<boost::mutex> lock(_mutex);
-
-		// std::cout << " - lock created " << std::endl;
-		// std::cout.flush();
-
 		if (timeout >= 0) {
 			boost::system_time const ts =
 				boost::get_system_time() +
 				boost::posix_time::milliseconds(timeout * 1000);
-
-			// std::cout << " - get ts: " << timeout << std::endl;
-			// std::cout.flush();
 
 			try {
 				_cond.timed_wait(lock, ts);
@@ -56,9 +46,6 @@ public:
 			while (!_flag)
 				_cond.wait(lock);
 		}
-
-		// std::cout << " - timed wait returned " << std::endl;
-		// std::cout.flush();
 
 		return _flag;
     }
