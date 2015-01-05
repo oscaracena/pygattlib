@@ -35,7 +35,7 @@ public:
 	GATTResponse();
 	virtual ~GATTResponse() {};
 
-	virtual void on_response(std::string data);
+	virtual void on_response(const std::string data);
 	boost::python::list received();
 	bool wait(uint16_t timeout);
 	void notify(uint8_t status);
@@ -53,6 +53,9 @@ public:
 	GATTRequester(std::string address, bool do_connect=true);
 	~GATTRequester();
 
+	virtual void on_notification(const uint16_t handle, const std::string data);
+	virtual void on_indication(const uint16_t handle, const std::string data);
+
 	void connect(bool wait=false);
 	bool is_connected();
 	void read_by_handle_async(uint16_t handle, GATTResponse* response);
@@ -63,6 +66,7 @@ public:
     boost::python::list write_by_handle(uint16_t handle, std::string data);
 
 	friend void connect_cb(GIOChannel*, GError*, gpointer);
+	friend void events_handler(const uint8_t* data, uint16_t size, gpointer userp);
 
 private:
 	void check_channel();
