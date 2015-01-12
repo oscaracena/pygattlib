@@ -196,8 +196,9 @@ GATTRequester::connect(bool wait) {
 		 (gpointer)this);
 
     if (_channel == NULL) {
+		std::string msg(gerr->message);
 		g_error_free(gerr);
-		throw std::runtime_error(gerr->message);
+		throw std::runtime_error(msg);
     }
 
     if (wait)
