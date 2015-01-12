@@ -1,5 +1,5 @@
 Source: gattlib
-Maintainer: Oscar Acena <oscar.acena@gmail.com>
+Maintainer: Oscar Aceña Herrera <oscaracena@gmail.com>
 Section: python
 Priority: optional
 Build-Depends: python-all-dev (>= 2.6.6-3), debhelper (>= 9), dh-python

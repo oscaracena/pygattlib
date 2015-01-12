@@ -1,5 +1,11 @@
+gattlib (0.20150112-1) unstable; urgency=low
+
+  * New release
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Mon, 12 Jan 2015 08:50:24 +0100
+
 gattlib (0.20141222-1) unstable; urgency=low
 
   * source package automatically created by stdeb 0.8.2
 
- -- Oscar Aceña <oscar.acena@gmail.com>  Mon, 22 Dec 2014 19:57:22 +0100
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Mon, 22 Dec 2014 19:57:22 +0100

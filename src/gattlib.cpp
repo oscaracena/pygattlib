@@ -188,7 +188,7 @@ GATTRequester::connect(bool wait) {
 		(_device.c_str(),  // 'hciX'
 		 _address.c_str(), // 'mac address'
 		 "public",         // 'public' '[public | random]'
-		 "low",            // 'low' '[low | medium | high]'
+		 "medium",         // sec_level, '[low | medium | high]'
 		 0,                // 0, psm
 		 0,                // 0, mtu
 		 connect_cb,
