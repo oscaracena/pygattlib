@@ -5,3 +5,8 @@ all:
 
 %:
 	$(MAKE) -C src $@
+
+.PHONY: clean
+clean:
+	$(MAKE) -C src $@
+	$(RM) -fr dist MANIFEST

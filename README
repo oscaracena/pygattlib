@@ -9,15 +9,27 @@ bluez package.
 Installation
 ============
 
-There are to ways of installing this library: using the Debian
-pacakge, or compiling it.
+There are many ways of installing this library: using Python Pip,
+using the Debian package, or manually compiling it.
+
+Python pip
+----------
+
+Install as ever (you may need the packages listed on DEPENDS files):
+
+    $ sudo pip install gattlib
 
 Debian way
 ----------
 
-Just grab the proper package from the downloads section, and install using:
+Add the following line to your sources list:
 
-    $ sudo dpkg -i <package_name.deb>
+    deb http://babel.esi.uclm.es/arco sid main
+
+And install using apt-get (or similar):
+
+    $ sudo apt-get update
+    $ sudo apt-get install python-gattlib
 
 Compiling from source
 ---------------------
