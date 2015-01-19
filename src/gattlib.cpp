@@ -109,12 +109,22 @@ GATTRequester::~GATTRequester() {
 
 void
 GATTRequester::on_notification(const uint16_t handle, const std::string data) {
-    std::cout << "on notification, handle: 0x" << std::hex << handle << std::endl;
+    std::cout << "on notification, handle: 0x" << std::hex << handle << " -> ";
+
+	for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
+		printf("%02x:", int(*i));
+	}
+	printf("\n");
 }
 
 void
 GATTRequester::on_indication(const uint16_t handle, const std::string data) {
-    std::cout << "on indication, handle: 0x" << std::hex << handle << std::endl;
+    std::cout << "on indication, handle: 0x" << std::hex << handle << " -> ";
+
+	for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
+		printf("%02x:", int(*i));
+	}
+	printf("\n");
 }
 
 void

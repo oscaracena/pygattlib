@@ -15,8 +15,9 @@ using the Debian package, or manually compiling it.
 Python pip
 ----------
 
-Install as ever (you may need the packages listed on DEPENDS files):
+Install as ever (you may need to install the packages listed on DEPENDS files):
 
+    $ sudo apt-get install $(cat DEPENDS)
     $ sudo pip install gattlib
 
 Debian way
