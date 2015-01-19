@@ -2,7 +2,8 @@ Source: gattlib
 Maintainer: Oscar Aceña Herrera <oscaracena@gmail.com>
 Section: python
 Priority: optional
-Build-Depends: python-all-dev (>= 2.6.6-3), debhelper (>= 9), dh-python
+Build-Depends: python-all-dev (>= 2.6.6-3), debhelper (>= 9), dh-python, pkg-config,
+ libglib2.0-dev, libboost-python-dev, libboost-thread-dev, libbluetooth-dev (>= 5.23)
 Standards-Version: 3.9.6
 
 Package: python-gattlib
