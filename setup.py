@@ -14,16 +14,9 @@ glib_libs = glib_libs.strip().split("-l")
 glib_libs = [x.strip() for x in glib_libs if x]
 
 
-def get_version():
-    with open('debian/changelog') as chlog:
-        ver = chlog.readline().split()[1][1:-1]
-        ver = ver[:ver.rfind("-")]
-        return ver
-
-
 setup(
     name = 'gattlib',
-    version = get_version(),
+    version = "0.20150119",
     description = "Library to access Bluetooth LE devices",
     author = "Oscar Acena",
     author_email = "oscar.acena@gmail.com",
