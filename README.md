@@ -1,4 +1,3 @@
-
 Description
 ===========
 
@@ -129,7 +128,7 @@ when the response arrives:
 
     class NotifyYourName(GATTResponse):
         def on_response(self, name):
-	    print "your name is: {}".format(name)
+            print "your name is: {}".format(name)
 
     response = NotifyYourName()
     req = GATTRequester("00:11:22:33:44:55")
