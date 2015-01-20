@@ -3,7 +3,7 @@ Description
 
 This is a Python library to use the GATT Protocol for Bluetooth LE
 devices. It is a wrapper around the implementation used by gatttool in
-bluez package.
+bluez package. It does not call other binaries to do its job :)
 
 Installation
 ============
