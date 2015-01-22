@@ -12,6 +12,9 @@
 #define EIR_NAME_SHORT     0x08  /* shortened local name */
 #define EIR_NAME_COMPLETE  0x09  /* complete local name */
 
+#define BLE_EVENT_TYPE     0x05
+#define BLE_SCAN_RESPONSE  0x04
+
 typedef std::pair<std::string, std::string> StringPair;
 typedef std::map<std::string, std::string> StringDict;
 

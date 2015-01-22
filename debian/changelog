@@ -1,3 +1,9 @@
+gattlib (0.20150122-1) unstable; urgency=low
+
+  * New release, some bugfix
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Thu, 22 Jan 2015 19:05:19 +0100
+
 gattlib (0.20150119.1-1) unstable; urgency=low
 
   * New release

@@ -106,7 +106,8 @@ StringPair
 DiscoveryService::process_input(unsigned char* buffer, int size) {
 	unsigned char* ptr = buffer + HCI_EVENT_HDR_SIZE + 1;
 	evt_le_meta_event* meta = (evt_le_meta_event*) ptr;
-	if (meta->subevent != 0x02)
+
+	if (meta->subevent != 0x02 || (uint8_t)buffer[BLE_EVENT_TYPE] != BLE_SCAN_RESPONSE)
 		return StringPair();
 
 	le_advertising_info* info;
@@ -138,10 +139,7 @@ DiscoveryService::parse_name(uint8_t* data, size_t size) {
 			if (name_len > size)
 				return unknown;
 
-			char name[name_len + 1];
-			memcpy(name, data + 2, name_len);
-			name[name_len] = 0;
-			return name;
+			return std::string((const char*)(data + 2), name_len);
 		}
 
 		offset += field_len + 1;
