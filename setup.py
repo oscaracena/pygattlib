@@ -1,17 +1,25 @@
 #!/usr/bin/python
 # -*- mode: python; coding: utf-8 -*-
 
+import sys
 import subprocess
 from distutils.core import setup, Extension
 
 
-glib_headers = subprocess.check_output("pkg-config --cflags glib-2.0".split())
+glib_headers = subprocess.check_output(
+    "pkg-config --cflags glib-2.0".split()).decode('utf-8')
 glib_headers = glib_headers.strip().split("-I")
 glib_headers = [x.strip() for x in glib_headers if x]
 
-glib_libs = subprocess.check_output("pkg-config --libs glib-2.0".split())
+glib_libs = subprocess.check_output(
+    "pkg-config --libs glib-2.0".split()).decode('utf-8')
 glib_libs = glib_libs.strip().split("-l")
 glib_libs = [x.strip() for x in glib_libs if x]
+
+if sys.version_info.major == 3:
+    boost_libs = ["boost_python-py34"]
+else:
+    boost_libs = ["boost_python"]
 
 
 setup(
@@ -21,6 +29,7 @@ setup(
     author = "Oscar Acena",
     author_email = "oscar.acena@gmail.com",
     url = "https://bitbucket.org/OscarAcena/pygattlib",
+    use_2to3 = True,
 
     ext_modules = [
         Extension(
@@ -37,8 +46,8 @@ setup(
              'src/bluez/src/log.c',
              'src/bluez/btio/btio.c'],
 
-            libraries = glib_libs + [
-                "boost_python", "boost_thread", "bluetooth"
+            libraries = glib_libs + boost_libs + [
+                "boost_thread", "bluetooth"
             ],
 
             include_dirs = glib_headers + [

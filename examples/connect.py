@@ -1,8 +1,10 @@
 #!/usr/bin/python
 # -*- mode: python; coding: utf-8 -*-
 
-# Copyright (C) 2014, Oscar Acena <oscar.acena@uclm.es>
+# Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 # This software is under the terms of GPLv3 or later.
+
+from __future__ import print_function
 
 import sys
 from gattlib import GATTRequester
@@ -14,16 +16,16 @@ class JustConnect(object):
         self.connect()
 
     def connect(self):
-        print "Connecting...",
+        print("Connecting...", end=' ')
         sys.stdout.flush()
 
         self.requester.connect(True)
-        print "OK!"
+        print("OK!")
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print "Usage: {} <addr>".format(sys.argv[0])
+        print("Usage: {} <addr>".format(sys.argv[0]))
         sys.exit(1)
 
     JustConnect(sys.argv[1])
-    print "Done."
+    print("Done.")

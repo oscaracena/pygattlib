@@ -1,3 +1,9 @@
+gattlib (0.20150130-1) unstable; urgency=low
+
+  * New release for python3
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Fri, 30 Jan 2015 09:53:05 +0100
+
 gattlib (0.20150122-1) unstable; urgency=low
 
   * New release, some bugfix
