@@ -11,7 +11,7 @@ import time
 from gattlib import GATTRequester
 
 
-class ConnectAndDisconnect(object):
+class PassiveDisconnect(object):
     def __init__(self, address):
         self.requester = GATTRequester(address, False)
 
@@ -42,5 +42,5 @@ if __name__ == '__main__':
         print("Usage: {} <addr>".format(sys.argv[0]))
         sys.exit(1)
 
-    ConnectAndDisconnect(sys.argv[1])
+    PassiveDisconnect(sys.argv[1])
     print("Done.")

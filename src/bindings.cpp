@@ -16,7 +16,8 @@ public:
 	GATTResponseCb(PyObject* p) : self(p) {
 	}
 
-	void on_response(std::string data) {
+	// to be called from c++ side
+	void on_response(const std::string data) {
 		try {
 			PyGILState_STATE state = PyGILState_Ensure();
 			call_method<void>(self, "on_response", data);
@@ -26,6 +27,7 @@ public:
 		}
 	}
 
+	// to be called from python side
 	static void default_on_response(GATTResponse& self_, const std::string data) {
 		self_.GATTResponse::on_response(data);
 	}
@@ -34,9 +36,60 @@ private:
 	PyObject* self;
 };
 
+class GATTRequesterCb : public GATTRequester {
+public:
+	GATTRequesterCb(PyObject* p, std::string address, bool do_connect=true) :
+		GATTRequester(address, do_connect),
+		self(p) {
+	}
+
+	// to be called from c++ side
+	void on_notification(const uint16_t handle, const std::string data) {
+		try {
+			PyGILState_STATE state = PyGILState_Ensure();
+			call_method<void>(self, "on_notification", handle, data);
+			PyGILState_Release(state);
+		} catch(error_already_set const&) {
+			PyErr_Print();
+		}
+	}
+
+	// to be called from python side
+	static void default_on_notification(GATTRequester& self_,
+										const uint16_t handle,
+										const std::string data) {
+		self_.GATTRequester::on_notification(handle, data);
+	}
+
+	// to be called from c++ side
+	void on_indication(const uint16_t handle, const std::string data) {
+		try {
+			PyGILState_STATE state = PyGILState_Ensure();
+			call_method<void>(self, "on_indication", handle, data);
+			PyGILState_Release(state);
+		} catch(error_already_set const&) {
+			PyErr_Print();
+		}
+	}
+
+	// to be called from python side
+	static void default_on_indication(GATTRequester& self_,
+										const uint16_t handle,
+										const std::string data) {
+		self_.GATTRequester::on_indication(handle, data);
+	}
+
+private:
+	PyObject* self;
+};
+
 BOOST_PYTHON_MODULE(gattlib) {
 
-	class_<GATTRequester>("GATTRequester", init<std::string, optional<bool> >())
+	register_ptr_to_python<GATTRequester*>();
+
+	class_<GATTRequester, boost::noncopyable, GATTRequesterCb>
+		("GATTRequester", init<std::string, optional<bool> >())
+
 		.def("connect", &GATTRequester::connect)
 		.def("is_connected", &GATTRequester::is_connected)
 		.def("disconnect", &GATTRequester::disconnect)
@@ -46,6 +99,8 @@ BOOST_PYTHON_MODULE(gattlib) {
 		.def("read_by_uuid_async", &GATTRequester::read_by_uuid_async)
 		.def("write_by_handle", &GATTRequester::write_by_handle)
 		.def("write_by_handle_async", &GATTRequester::write_by_handle_async)
+		.def("on_notification", &GATTRequesterCb::default_on_notification)
+		.def("on_indication", &GATTRequesterCb::default_on_indication)
 		;
 
 	register_ptr_to_python<GATTResponse*>();
