@@ -51,13 +51,14 @@ void connect_cb(GIOChannel* channel, GError* err, gpointer user_data);
 class GATTRequester {
 public:
 	GATTRequester(std::string address, bool do_connect=true);
-	~GATTRequester();
+	virtual ~GATTRequester();
 
 	virtual void on_notification(const uint16_t handle, const std::string data);
 	virtual void on_indication(const uint16_t handle, const std::string data);
 
 	void connect(bool wait=false);
 	bool is_connected();
+	void disconnect();
 	void read_by_handle_async(uint16_t handle, GATTResponse* response);
 	boost::python::list read_by_handle(uint16_t handle);
 	void read_by_uuid_async(std::string uuid, GATTResponse* response);

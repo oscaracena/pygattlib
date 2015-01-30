@@ -192,7 +192,7 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 gboolean
 disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp) {
     GATTRequester* request = (GATTRequester*)userp;
-	request->_state = GATTRequester::STATE_DISCONNECTED;
+	request->disconnect();
 	return false;
 }
 
@@ -231,6 +231,21 @@ GATTRequester::connect(bool wait) {
 bool
 GATTRequester::is_connected() {
     return _state == STATE_CONNECTED;
+}
+
+void
+GATTRequester::disconnect() {
+	if (_state == STATE_DISCONNECTED)
+		return;
+
+	g_attrib_unref(_attrib);
+	_attrib = NULL;
+
+	g_io_channel_shutdown(_channel, false, NULL);
+	g_io_channel_unref(_channel);
+	_channel = NULL;
+
+	_state = STATE_DISCONNECTED;
 }
 
 static void
