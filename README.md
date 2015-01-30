@@ -1,3 +1,19 @@
+Index
+=======
+
+* [Description](#markdown-header-description)
+* [Installation](#markdown-header-installation)
+    * [Python pip](#markdown-header-python-pip)
+    * [Debian way](#markdown-header-debian-way)
+    * [Compiling from source](#markdown-header-compiling-from-source)
+* [Usage](#markdown-header-usage)
+    * [Discovering devices](#markdown-header-discovering-devices)
+    * [Reading data](#markdown-header-reading-data)
+    * [Reading data asynchronously](#markdown-header-reading-data-asynchronously)
+    * [Writing data](#markdown-header-writing-data)
+    * [Receiving notifications](#markdown-header-receiving-notifications)
+* [Disclaimer](#markdown-header-disclaimer)
+
 Description
 ===========
 
@@ -157,3 +173,36 @@ data. As a note, data must be a string, but you can convert it from
 
     req = GATTRequester("00:11:22:33:44:55")
     req.write_by_handle(0x10, str(bytearray([14, 4, 56])))
+
+Receiving notifications
+-----------------------
+
+To receive notifications from remote device, you need to overwrite the
+`on_notification` method of `GATTRequester`. This method is called
+each time a notification arrives, and has two params: the handle where
+the notification was produced, and a string with the data that came in
+the notification event. The following is a brief example:
+
+    from gattlib import GATTRequester
+
+    class Requester(GATTRequester):
+        def on_notification(self, handle, data):
+            print("- notification on handle: {}\n".format(handle))
+
+You can receive indications as well. Just overwrite the method
+`on_indication` of `GATTRequester`.
+
+Disclaimer
+==========
+
+This software may harm your device. Use it at your own risk.
+
+THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+APPLICABLE LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM “AS IS” WITHOUT
+WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND
+PERFORMANCE OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE
+DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR
+CORRECTION.
