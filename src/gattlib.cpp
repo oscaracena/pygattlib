@@ -1,6 +1,6 @@
 // -*- mode: c++; coding: utf-8; tab-width: 4 -*-
 
-// Copyright (C) 2014, Oscar Acena <oscar.acena@uclm.es>
+// Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of GPLv3 or later.
 
 #include <boost/thread/thread.hpp>
@@ -153,7 +153,10 @@ events_handler(const uint8_t* data, uint16_t size, gpointer userp) {
 
 void
 connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
+    GATTRequester* request = (GATTRequester*)userp;
+
     if (err) {
+		request->_state = GATTRequester::STATE_DISCONNECTED;
 		std::string msg(err->message);
 		g_error_free(err);
 		throw std::runtime_error(msg);
@@ -176,7 +179,6 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     if (cid == ATT_CID)
 		mtu = ATT_DEFAULT_LE_MTU;
 
-    GATTRequester* request = (GATTRequester*)userp;
     request->_attrib = g_attrib_new(channel, mtu);
 
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY, GATTRIB_ALL_HANDLES,
@@ -187,10 +189,18 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     request->_state = GATTRequester::STATE_CONNECTED;
 }
 
+gboolean
+disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp) {
+    GATTRequester* request = (GATTRequester*)userp;
+	request->_state = GATTRequester::STATE_DISCONNECTED;
+	return false;
+}
+
 void
 GATTRequester::connect(bool wait) {
     if (_state != STATE_DISCONNECTED)
 		throw std::runtime_error("Already connecting or connected");
+
     _state = STATE_CONNECTING;
 
     GError *gerr = NULL;
@@ -206,11 +216,14 @@ GATTRequester::connect(bool wait) {
 		 (gpointer)this);
 
     if (_channel == NULL) {
+		_state = STATE_DISCONNECTED;
+
 		std::string msg(gerr->message);
 		g_error_free(gerr);
 		throw std::runtime_error(msg);
     }
 
+	g_io_add_watch(_channel, G_IO_HUP, disconnect_cb, (gpointer)this);
     if (wait)
 		check_channel();
 }

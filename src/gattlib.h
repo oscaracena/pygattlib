@@ -1,6 +1,6 @@
 // -*- mode: c++; coding: utf-8; tab-width: 4 -*-
 
-// Copyright (C) 2014, Oscar Acena <oscar.acena@uclm.es>
+// Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of GPLv3 or later.
 
 #ifndef _MIBANDA_GATTLIB_H_
@@ -66,6 +66,7 @@ public:
     boost::python::list write_by_handle(uint16_t handle, std::string data);
 
 	friend void connect_cb(GIOChannel*, GError*, gpointer);
+	friend gboolean disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp);
 	friend void events_handler(const uint8_t* data, uint16_t size, gpointer userp);
 
 private:
