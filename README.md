@@ -14,10 +14,11 @@ using the Debian package, or manually compiling it.
 Python pip
 ----------
 
-Install as ever (you may need to install the packages listed on DEPENDS files):
+Install as ever (you may need to install the packages listed on `DEPENDS` files):
 
-    $ sudo apt-get install $(cat DEPENDS)
     $ sudo pip install gattlib
+
+You can install for Python3 too, just use `pip3`
 
 Debian way
 ----------
@@ -31,17 +32,23 @@ And install using apt-get (or similar):
     $ sudo apt-get update
     $ sudo apt-get install python-gattlib
 
+You can install for Python3 too (Debian package is called `python3-gattlib`).
+
 Compiling from source
 ---------------------
 
-You should install the needed packages, which are described on DEPENDS file:
-
-    $ sudo apt-get install $(cat DEPENDS)
-
-And then, just type:
+You should install the needed packages, which are described on `DEPENDS`
+file. Take special care about versions: libbluetooth-dev should be
+4.101 or greater. Then, just type:
 
     $ make
     [...]
+
+If you want to compile for Python 3, you need to:
+
+    $ make PYTHON_VER=3
+
+Then, to install, just:
 
     $ make install
 
@@ -81,7 +88,7 @@ As example:
     devices = service.discover(2)
 
     for address, name in devices.items():
-        print "name: {}, address: {}".format(name, address)
+        print("name: {}, address: {}".format(name, address))
 
 Reading data
 ------------
@@ -128,7 +135,7 @@ when the response arrives:
 
     class NotifyYourName(GATTResponse):
         def on_response(self, name):
-            print "your name is: {}".format(name)
+            print("your name is: {}".format(name))
 
     response = NotifyYourName()
     req = GATTRequester("00:11:22:33:44:55")
