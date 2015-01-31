@@ -1,4 +1,4 @@
-// -*- mode: c++; coding: utf-8; tab-width: 4 -*-
+// -*- mode: c++; coding: utf-8 -*-
 
 // Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of GPLv3 or later.
@@ -14,15 +14,32 @@
 
 #include "gattlib.h"
 
+class PyThreadsGuard {
+public:
+    PyThreadsGuard() : _save(NULL) {
+        _save = PyEval_SaveThread();
+    };
+
+    ~PyThreadsGuard() {
+        PyEval_RestoreThread(_save);
+    };
+
+private:
+    PyThreadState* _save;
+};
+
 
 IOService::IOService(bool run) {
     if (run)
-		start();
+        start();
 }
 
 void
 IOService::start() {
-    PyEval_InitThreads();
+    if (!PyEval_ThreadsInitialized()) {
+        PyEval_InitThreads();
+    }
+
     boost::thread iothread(*this);
 }
 
@@ -37,7 +54,7 @@ IOService::operator()() {
 static volatile IOService _instance(true);
 
 GATTResponse::GATTResponse() :
-	_status(0) {
+    _status(0) {
 }
 
 void
@@ -54,12 +71,12 @@ GATTResponse::notify(uint8_t status) {
 bool
 GATTResponse::wait(uint16_t timeout) {
     if (not _event.wait(timeout))
-		return false;
+        return false;
 
     if (_status != 0) {
-		std::string msg = "Characteristic value/descriptor operation failed: ";
-		msg += att_ecode2str(_status);
-		throw std::runtime_error(msg);
+        std::string msg = "Characteristic value/descriptor operation failed: ";
+        msg += att_ecode2str(_status);
+        throw std::runtime_error(msg);
     }
 
     return true;
@@ -71,39 +88,39 @@ GATTResponse::received() {
 }
 
 GATTRequester::GATTRequester(std::string address, bool do_connect) :
-	_state(STATE_DISCONNECTED),
-	_device("hci0"),
+    _state(STATE_DISCONNECTED),
+    _device("hci0"),
     _address(address),
-	_hci_socket(-1),
+    _hci_socket(-1),
     _channel(NULL),
     _attrib(NULL) {
 
-	int dev_id = hci_devid(_device.c_str());
-	if (dev_id < 0)
-		throw std::runtime_error("Invalid device!");
+    int dev_id = hci_devid(_device.c_str());
+    if (dev_id < 0)
+        throw std::runtime_error("Invalid device!");
 
     _hci_socket = hci_open_dev(dev_id);
-	if (_hci_socket < 0) {
-		std::string msg = std::string("Could not open HCI device: ") +
-			std::string(strerror(errno));
-     	throw std::runtime_error(msg);
-	}
+    if (_hci_socket < 0) {
+        std::string msg = std::string("Could not open HCI device: ") +
+            std::string(strerror(errno));
+        throw std::runtime_error(msg);
+    }
 
     if (do_connect)
-		connect();
+        connect();
 }
 
 GATTRequester::~GATTRequester() {
     if (_channel != NULL) {
-		g_io_channel_shutdown(_channel, TRUE, NULL);
-		g_io_channel_unref(_channel);
+        g_io_channel_shutdown(_channel, TRUE, NULL);
+        g_io_channel_unref(_channel);
     }
 
-	if (_hci_socket > -1)
-		hci_close_dev(_hci_socket);
+    if (_hci_socket > -1)
+        hci_close_dev(_hci_socket);
 
     if (_attrib != NULL) {
-		g_attrib_unref(_attrib);
+        g_attrib_unref(_attrib);
     }
 }
 
@@ -111,20 +128,20 @@ void
 GATTRequester::on_notification(const uint16_t handle, const std::string data) {
     std::cout << "on notification, handle: 0x" << std::hex << handle << " -> ";
 
-	for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
-		printf("%02x:", int(*i));
-	}
-	printf("\n");
+    for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
+        printf("%02x:", int(*i));
+    }
+    printf("\n");
 }
 
 void
 GATTRequester::on_indication(const uint16_t handle, const std::string data) {
     std::cout << "on indication, handle: 0x" << std::hex << handle << " -> ";
 
-	for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
-		printf("%02x:", int(*i));
-	}
-	printf("\n");
+    for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
+        printf("%02x:", int(*i));
+    }
+    printf("\n");
 }
 
 void
@@ -134,13 +151,13 @@ events_handler(const uint8_t* data, uint16_t size, gpointer userp) {
 
     switch(data[0]) {
     case ATT_OP_HANDLE_NOTIFY:
-		request->on_notification(handle, std::string((const char*)data, size));
-		return;
+        request->on_notification(handle, std::string((const char*)data, size));
+        return;
     case ATT_OP_HANDLE_IND:
-		request->on_indication(handle, std::string((const char*)data, size));
-		break;
+        request->on_indication(handle, std::string((const char*)data, size));
+        break;
     default:
-		throw std::runtime_error("Invalid event opcode!");
+        throw std::runtime_error("Invalid event opcode!");
     }
 
     size_t plen;
@@ -148,7 +165,7 @@ events_handler(const uint8_t* data, uint16_t size, gpointer userp) {
     uint16_t olen = enc_confirmation(output, plen);
 
     if (olen > 0)
-     	g_attrib_send(request->_attrib, 0, output, olen, NULL, NULL, NULL);
+        g_attrib_send(request->_attrib, 0, output, olen, NULL, NULL, NULL);
 }
 
 void
@@ -156,35 +173,35 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     GATTRequester* request = (GATTRequester*)userp;
 
     if (err) {
-		request->_state = GATTRequester::STATE_DISCONNECTED;
-		std::string msg(err->message);
-		g_error_free(err);
-		throw std::runtime_error(msg);
+        request->_state = GATTRequester::STATE_DISCONNECTED;
+        std::string msg(err->message);
+        g_error_free(err);
+        throw std::runtime_error(msg);
     }
 
     GError *gerr = NULL;
     uint16_t mtu;
     uint16_t cid;
     bt_io_get(channel, &gerr,
-			  BT_IO_OPT_IMTU, &mtu,
-			  BT_IO_OPT_CID, &cid,
-			  BT_IO_OPT_INVALID);
+              BT_IO_OPT_IMTU, &mtu,
+              BT_IO_OPT_CID, &cid,
+              BT_IO_OPT_INVALID);
 
     // Can't detect MTU, using default
     if (gerr) {
-		g_error_free(gerr);
-		mtu = ATT_DEFAULT_LE_MTU;
+        g_error_free(gerr);
+        mtu = ATT_DEFAULT_LE_MTU;
     }
 
     if (cid == ATT_CID)
-		mtu = ATT_DEFAULT_LE_MTU;
+        mtu = ATT_DEFAULT_LE_MTU;
 
     request->_attrib = g_attrib_new(channel, mtu);
 
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY, GATTRIB_ALL_HANDLES,
-					  events_handler, userp, NULL);
+                      events_handler, userp, NULL);
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_IND, GATTRIB_ALL_HANDLES,
-					  events_handler, userp, NULL);
+                      events_handler, userp, NULL);
 
     request->_state = GATTRequester::STATE_CONNECTED;
 }
@@ -192,40 +209,40 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 gboolean
 disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp) {
     GATTRequester* request = (GATTRequester*)userp;
-	request->disconnect();
-	return false;
+    request->disconnect();
+    return false;
 }
 
 void
 GATTRequester::connect(bool wait) {
     if (_state != STATE_DISCONNECTED)
-		throw std::runtime_error("Already connecting or connected");
+        throw std::runtime_error("Already connecting or connected");
 
     _state = STATE_CONNECTING;
 
     GError *gerr = NULL;
     _channel = gatt_connect
-		(_device.c_str(),  // 'hciX'
-		 _address.c_str(), // 'mac address'
-		 "public",         // 'public' '[public | random]'
-		 "medium",         // sec_level, '[low | medium | high]'
-		 0,                // 0, psm
-		 0,                // 0, mtu
-		 connect_cb,
-		 &gerr,
-		 (gpointer)this);
+        (_device.c_str(),  // 'hciX'
+         _address.c_str(), // 'mac address'
+         "public",         // 'public' '[public | random]'
+         "medium",         // sec_level, '[low | medium | high]'
+         0,                // 0, psm
+         0,                // 0, mtu
+         connect_cb,
+         &gerr,
+         (gpointer)this);
 
     if (_channel == NULL) {
-		_state = STATE_DISCONNECTED;
+        _state = STATE_DISCONNECTED;
 
-		std::string msg(gerr->message);
-		g_error_free(gerr);
-		throw std::runtime_error(msg);
+        std::string msg(gerr->message);
+        g_error_free(gerr);
+        throw std::runtime_error(msg);
     }
 
-	g_io_add_watch(_channel, G_IO_HUP, disconnect_cb, (gpointer)this);
+    g_io_add_watch(_channel, G_IO_HUP, disconnect_cb, (gpointer)this);
     if (wait)
-		check_channel();
+        check_channel();
 }
 
 bool
@@ -235,17 +252,17 @@ GATTRequester::is_connected() {
 
 void
 GATTRequester::disconnect() {
-	if (_state == STATE_DISCONNECTED)
-		return;
+    if (_state == STATE_DISCONNECTED)
+        return;
 
-	g_attrib_unref(_attrib);
-	_attrib = NULL;
+    g_attrib_unref(_attrib);
+    _attrib = NULL;
 
-	g_io_channel_shutdown(_channel, false, NULL);
-	g_io_channel_unref(_channel);
-	_channel = NULL;
+    g_io_channel_shutdown(_channel, false, NULL);
+    g_io_channel_unref(_channel);
+    _channel = NULL;
 
-	_state = STATE_DISCONNECTED;
+    _state = STATE_DISCONNECTED;
 }
 
 static void
@@ -269,30 +286,29 @@ GATTRequester::read_by_handle(uint16_t handle) {
     read_by_handle_async(handle, &response);
 
     if (not response.wait(MAX_WAIT_FOR_PACKET))
-		// FIXME: now, response is deleted, but is still registered on
-		// GLIB as callback!!
-		throw std::runtime_error("Device is not responding!");
+        // FIXME: now, response is deleted, but is still registered on
+        // GLIB as callback!!
+        throw std::runtime_error("Device is not responding!");
 
     return response.received();
 }
 
 static void
 read_by_uuid_cb(guint8 status, const guint8* data, guint16 size, gpointer userp) {
-
     struct att_data_list* list;
     list = dec_read_by_type_resp(data, size);
     if (list == NULL)
-		return;
+        return;
 
     GATTResponse* response = (GATTResponse*)userp;
     for (int i=0; i<list->num; i++) {
-		uint8_t* item = list->data[i];
+        uint8_t* item = list->data[i];
 
-		// Remove handle addr
-		item += 2;
+        // Remove handle addr
+        item += 2;
 
-		std::string value((const char*)item, list->len - 2);
-		response->on_response(value);
+        std::string value((const char*)item, list->len - 2);
+        response->on_response(value);
     }
 
     att_data_list_free(list);
@@ -307,22 +323,24 @@ GATTRequester::read_by_uuid_async(std::string uuid, GATTResponse* response) {
 
     check_channel();
     if (bt_string_to_uuid(&btuuid, uuid.c_str()) < 0)
-		throw std::runtime_error("Invalid UUID\n");
+        throw std::runtime_error("Invalid UUID\n");
 
     gatt_read_char_by_uuid(_attrib, start, end, &btuuid, read_by_uuid_cb,
-						   (gpointer)response);
+                           (gpointer)response);
 
 }
 
 boost::python::list
 GATTRequester::read_by_uuid(std::string uuid) {
+    PyThreadsGuard guard;
     GATTResponse response;
+
     read_by_uuid_async(uuid, &response);
 
     if (not response.wait(MAX_WAIT_FOR_PACKET))
-		// FIXME: now, response is deleted, but is still registered on
-		// GLIB as callback!!
-		throw std::runtime_error("Device is not responding!");
+        // FIXME: now, response is deleted, but is still registered on
+        // GLIB as callback!!
+        throw std::runtime_error("Device is not responding!");
 
     return response.received();
 }
@@ -336,21 +354,23 @@ write_by_handle_cb(guint8 status, const guint8* data, guint16 size, gpointer use
 
 void
 GATTRequester::write_by_handle_async(uint16_t handle, std::string data,
-									 GATTResponse* response) {
+                                     GATTResponse* response) {
     check_channel();
     gatt_write_char(_attrib, handle, (const uint8_t*)data.data(), data.size(),
-					write_by_handle_cb, (gpointer)response);
+                    write_by_handle_cb, (gpointer)response);
 }
 
 boost::python::list
 GATTRequester::write_by_handle(uint16_t handle, std::string data) {
+    PyThreadsGuard guard;
     GATTResponse response;
+
     write_by_handle_async(handle, data, &response);
 
     if (not response.wait(MAX_WAIT_FOR_PACKET))
-		// FIXME: now, response is deleted, but is still registered on
-		// GLIB as callback!!
-		throw std::runtime_error("Device is not responding!");
+        // FIXME: now, response is deleted, but is still registered on
+        // GLIB as callback!!
+        throw std::runtime_error("Device is not responding!");
 
     return response.received();
 }
@@ -358,30 +378,30 @@ GATTRequester::write_by_handle(uint16_t handle, std::string data) {
 void
 GATTRequester::check_channel() {
     time_t ts = time(NULL);
-	bool should_update = false;
+    bool should_update = false;
 
     while (_channel == NULL || _attrib == NULL) {
-		should_update = true;
+        should_update = true;
 
-		usleep(1000);
-		if (time(NULL) - ts > MAX_WAIT_FOR_PACKET)
-			throw std::runtime_error("Channel or attrib not ready");
+        usleep(1000);
+        if (time(NULL) - ts > MAX_WAIT_FOR_PACKET)
+            throw std::runtime_error("Channel or attrib not ready");
     }
 
-	if (should_update) {
-		// Update connection settings (supervisor timeut > 0.42 s)
-		int l2cap_sock = g_io_channel_unix_get_fd(_channel);
-		struct l2cap_conninfo info;
-		socklen_t info_size = sizeof(info);
+    if (should_update) {
+        // Update connection settings (supervisor timeut > 0.42 s)
+        int l2cap_sock = g_io_channel_unix_get_fd(_channel);
+        struct l2cap_conninfo info;
+        socklen_t info_size = sizeof(info);
 
-		getsockopt(l2cap_sock, SOL_L2CAP, L2CAP_CONNINFO, &info, &info_size);
-		int handle = info.hci_handle;
+        getsockopt(l2cap_sock, SOL_L2CAP, L2CAP_CONNINFO, &info, &info_size);
+        int handle = info.hci_handle;
 
-		int retval = hci_le_conn_update(_hci_socket, handle, 24, 40, 0, 700, 25000);
-		if (retval < 0) {
-			std::string msg = std::string("Could not update HCI connection: ") +
-				std::string(strerror(errno));
-			throw std::runtime_error(msg);
-		}
-	}
+        int retval = hci_le_conn_update(_hci_socket, handle, 24, 40, 0, 700, 25000);
+        if (retval < 0) {
+            std::string msg = std::string("Could not update HCI connection: ") +
+                std::string(strerror(errno));
+            throw std::runtime_error(msg);
+        }
+    }
 }

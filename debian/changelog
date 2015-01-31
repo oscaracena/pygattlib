@@ -1,3 +1,9 @@
+gattlib (0.20150131-1) unstable; urgency=low
+
+  * New release; fix threading issues, added notifications on python
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Sat, 31 Jan 2015 18:14:43 +0100
+
 gattlib (0.20150130-1) unstable; urgency=low
 
   * New release for python3
