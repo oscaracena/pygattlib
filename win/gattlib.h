@@ -12,10 +12,6 @@
 #include <string>
 #include <stdint.h>
 
-extern "C" {
-// #include "lib/uuid.h"
-}
-
 #include "event.hpp"
 
 class IOService {
@@ -41,7 +37,6 @@ private:
 	Event _event;
 };
 
-// void connect_cb(GIOChannel* channel, GError* err, gpointer user_data);
 
 class GATTRequester {
 public:
@@ -61,10 +56,6 @@ public:
 	void write_by_handle_async(uint16_t handle, std::string data, GATTResponse* response);
     boost::python::list write_by_handle(uint16_t handle, std::string data);
 
-	//friend void connect_cb(GIOChannel*, GError*, gpointer);
-	//friend gboolean disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp);
-	//friend void events_handler(const uint8_t* data, uint16_t size, gpointer userp);
-
 private:
 	void check_channel();
 
@@ -77,8 +68,6 @@ private:
 	std::string _device;
 	std::string _address;
 	int _hci_socket;
-	//GIOChannel* _channel;
-	//GAttrib* _attrib;
 };
 
 #endif // _MIBANDA_GATTLIB_H_

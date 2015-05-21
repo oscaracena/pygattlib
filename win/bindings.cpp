@@ -2,7 +2,7 @@
 
 // Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of GPLv3 or later.
-
+#define BOOST_PYTHON_STATIC_LIB 
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 

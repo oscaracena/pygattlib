@@ -38,14 +38,22 @@ if sys.platform == 'win32':
     lib_path = os.path.join(PSDK_PATH, 'Lib')
     if '64' in platform.architecture()[0]:
         lib_path = os.path.join(lib_path, 'x64')
+
+    if sys.version_info.major == 3:
+        boost_libs = "libboost_python3-vc100-mt-1_58"
+    else:
+        boost_libs = "boost_python"
+
     ext_mod = Extension ('gattlib',
                         include_dirs = [
                                 "%s/Include" % PSDK_PATH,
                                 "./win",
-                                "c:\\Users\\plpikar1\\tfs\\PSGuard\\trunk\\libs\\boost_1_57_0\\"],
-                        library_dirs = [lib_path],
-                        libraries = [ "WS2_32", "Irprops" ],
-                        sources=['win/bindings.cpp'],)
+                                "c:\\local\\boost_1_58_0\\"],
+                        library_dirs = [lib_path, "c:\\local\\boost_1_58_0\\stage\\lib\\"],
+                        # libraries = [ "WS2_32", "Irprops", boost_libs ],
+                        # libraries = [ "WS2_32", "Irprops"],
+                        # sources=['win/extending.cpp'],)
+                        sources=['win/bindings.cpp', 'win/gattlib.cpp', 'win/gattservices.cpp'],)
     extension_modules = [ ext_mod ]
 elif sys.platform.startswith('linux'):
     glib_headers = subprocess.check_output(
@@ -97,6 +105,5 @@ setup(
     author = "Oscar Acena",
     author_email = "oscar.acena@gmail.com",
     url = "https://bitbucket.org/OscarAcena/pygattlib",
-    use_2to3 = True,
     ext_modules = extension_modules,
 )
