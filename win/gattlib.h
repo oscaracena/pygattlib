@@ -28,13 +28,7 @@ public:
 
 	virtual void on_response(const std::string data);
 	boost::python::list received();
-	bool wait(uint16_t timeout);
-	void notify(uint8_t status);
 
-private:
-	uint8_t _status;
-	boost::python::list _data;
-	Event _event;
 };
 
 
@@ -57,7 +51,6 @@ public:
     boost::python::list write_by_handle(uint16_t handle, std::string data);
 
 private:
-	void check_channel();
 
 	enum State {
 		STATE_DISCONNECTED,

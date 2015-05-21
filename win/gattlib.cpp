@@ -44,37 +44,20 @@ IOService::operator()() {
 
 static volatile IOService _instance(true);
 
-GATTResponse::GATTResponse() :
-    _status(0) {
+GATTResponse::GATTResponse() {
+    throw std::runtime_error("Not implemented!");
 }
 
 void
 GATTResponse::on_response(const std::string data) {
-    _data.append(data);
+    throw std::runtime_error("Not implemented!");
 }
 
-void
-GATTResponse::notify(uint8_t status) {
-    _status = status;
-    _event.set();
-}
-
-bool
-GATTResponse::wait(uint16_t timeout) {
-    if (!_event.wait(timeout))
-        return false;
-
-    if (_status != 0) {
-        std::string msg = "Characteristic value/descriptor operation failed: ";
-        throw std::runtime_error(msg);
-    }
-
-    return true;
-}
 
 boost::python::list
 GATTResponse::received() {
-    return _data;
+    throw std::runtime_error("Not implemented!");
+    return boost::python::list();
 }
 
 GATTRequester::GATTRequester(std::string address, bool do_connect) :
@@ -83,14 +66,7 @@ GATTRequester::GATTRequester(std::string address, bool do_connect) :
     _address(address),
     _hci_socket(-1)
 {
-    if (_hci_socket < 0) {
-        std::string msg = std::string("Could not open HCI device: ") +
-            std::string(strerror(errno));
-        throw std::runtime_error(msg);
-    }
-
-    if (do_connect)
-        connect();
+    throw std::runtime_error("Not implemented!");
 }
 
 GATTRequester::~GATTRequester() {
@@ -98,26 +74,17 @@ GATTRequester::~GATTRequester() {
 
 void
 GATTRequester::on_notification(const uint16_t handle, const std::string data) {
-    std::cout << "on notification, handle: 0x" << std::hex << handle << " -> ";
-
-    for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
-        printf("%02x:", int(*i));
-    }
-    printf("\n");
+    throw std::runtime_error("Not implemented!");
 }
 
 void
 GATTRequester::on_indication(const uint16_t handle, const std::string data) {
-    std::cout << "on indication, handle: 0x" << std::hex << handle << " -> ";
-
-    for (std::string::const_iterator i=data.begin() + 2; i!=data.end(); i++) {
-        printf("%02x:", int(*i));
-    }
-    printf("\n");
+    throw std::runtime_error("Not implemented!");
 }
 
 void
 GATTRequester::connect(bool wait) {
+    throw std::runtime_error("Not implemented!");
     if (_state != STATE_DISCONNECTED)
         throw std::runtime_error("Already connecting or connected");
 
@@ -131,6 +98,7 @@ GATTRequester::is_connected() {
 
 void
 GATTRequester::disconnect() {
+    throw std::runtime_error("Not implemented!");
     if (_state == STATE_DISCONNECTED)
         return;
 
@@ -139,62 +107,40 @@ GATTRequester::disconnect() {
 
 void
 GATTRequester::read_by_handle_async(uint16_t handle, GATTResponse* response) {
-    check_channel();
+    throw std::runtime_error("Not implemented!");
 }
 
 boost::python::list
 GATTRequester::read_by_handle(uint16_t handle) {
+    throw std::runtime_error("Not implemented!");
     GATTResponse response;
-    read_by_handle_async(handle, &response);
-
-    if (!response.wait(MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
-        throw std::runtime_error("Device is not responding!");
-
     return response.received();
 }
 
 void
 GATTRequester::read_by_uuid_async(std::string uuid, GATTResponse* response) {
+    throw std::runtime_error("Not implemented!");
 }
 
 boost::python::list
 GATTRequester::read_by_uuid(std::string uuid) {
+    throw std::runtime_error("Not implemented!");
     PyThreadsGuard guard;
     GATTResponse response;
-
-    read_by_uuid_async(uuid, &response);
-
-    if (!response.wait(MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
-        throw std::runtime_error("Device is not responding!");
-
     return response.received();
 }
 
 void
 GATTRequester::write_by_handle_async(uint16_t handle, std::string data,
                                      GATTResponse* response) {
-    check_channel();
+    throw std::runtime_error("Not implemented!");
 }
 
 boost::python::list
 GATTRequester::write_by_handle(uint16_t handle, std::string data) {
+    throw std::runtime_error("Not implemented!");
     PyThreadsGuard guard;
     GATTResponse response;
-
-    write_by_handle_async(handle, data, &response);
-
-    if (!response.wait(MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
-        throw std::runtime_error("Device is not responding!");
-
     return response.received();
 }
 
-void
-GATTRequester::check_channel() {
-}

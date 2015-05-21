@@ -23,18 +23,6 @@ public:
 	DiscoveryService(const std::string device);
 	~DiscoveryService();
 	boost::python::dict discover(int timeout);
-
-
-private:
-	void enable_scan_mode();
-	StringDict get_advertisements(int timeout);
-	StringPair process_input(unsigned char* buffer, int size);
-	std::string parse_name(uint8_t* data, size_t size);
-	void disable_scan_mode();
-
-	std::string _device;
-	int _device_desc;
-	int _timeout;
 };
 
 #endif // _GATTSERVICES_H_
