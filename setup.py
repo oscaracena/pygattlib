@@ -53,6 +53,7 @@ if sys.platform == 'win32':
                         # libraries = [ "WS2_32", "Irprops", boost_libs ],
                         # libraries = [ "WS2_32", "Irprops"],
                         # sources=['win/extending.cpp'],)
+                        extra_compile_args = [ '/EHsc' ],
                         sources=['win/bindings.cpp', 'win/gattlib.cpp', 'win/gattservices.cpp'],)
     extension_modules = [ ext_mod ]
 elif sys.platform.startswith('linux'):
