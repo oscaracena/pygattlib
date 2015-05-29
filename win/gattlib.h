@@ -11,6 +11,7 @@
 #include <boost/python/list.hpp>
 #include <string>
 #include <stdint.h>
+#include <windows.h>
 
 #include "event.hpp"
 
@@ -59,6 +60,7 @@ private:
 	} _state;
 
 	std::string _device;
+    HANDLE _device_handle;
 	std::string _address;
 	int _hci_socket;
 };

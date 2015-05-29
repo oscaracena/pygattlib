@@ -39,20 +39,12 @@ if sys.platform == 'win32':
     if '64' in platform.architecture()[0]:
         lib_path = os.path.join(lib_path, 'x64')
 
-    if sys.version_info.major == 3:
-        boost_libs = "libboost_python3-vc100-mt-1_58"
-    else:
-        boost_libs = "boost_python"
-
     ext_mod = Extension ('gattlib',
                         include_dirs = [
                                 "%s/Include" % PSDK_PATH,
                                 "./win",
                                 "c:\\local\\boost_1_58_0\\"],
                         library_dirs = [lib_path, "c:\\local\\boost_1_58_0\\stage\\lib\\"],
-                        # libraries = [ "WS2_32", "Irprops", boost_libs ],
-                        # libraries = [ "WS2_32", "Irprops"],
-                        # sources=['win/extending.cpp'],)
                         extra_compile_args = [ '/EHsc' ],
                         sources=['win/bindings.cpp', 'win/gattlib.cpp', 'win/gattservices.cpp'],)
     extension_modules = [ ext_mod ]

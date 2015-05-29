@@ -8,6 +8,8 @@
 #include <iostream>
 
 #include "gattlib.h"
+#include <winerror.h>
+//#include <bluetoothleapis.h>
 
 class PyThreadsGuard {
 public:
@@ -112,7 +114,48 @@ GATTRequester::read_by_handle_async(uint16_t handle, GATTResponse* response) {
 
 boost::python::list
 GATTRequester::read_by_handle(uint16_t handle) {
-    throw std::runtime_error("Not implemented!");
+    // Determine Characteristic Buffer Size
+    /*USHORT charBufferSize;
+    HRESULT hr = BluetoothGATTGetCharacteristics(
+            _device_handle,
+            NULL,
+            0,
+            NULL,
+            &charBufferSize,
+            BLUETOOTH_GATT_FLAG_NONE);
+    
+    if (HRESULT_FROM_WIN32(ERROR_MORE_DATA) != hr) {
+        throw std::runtime_error("Problem determining characteristics buffer size");
+    }
+    
+    if (charBufferSize > 0) {
+        pCharBuffer = (PBTH_LE_GATT_CHARACTERISTIC)
+                malloc(charBufferSize * sizeof(BTH_LE_GATT_CHARACTERISTIC));
+    
+        if (NULL == pCharBuffer) {
+            throw std::bad_alloc("Problem determining characteristics buffer size");
+        } else {
+            RtlZeroMemory(pCharBuffer, 
+                    charBufferSize * sizeof(BTH_LE_GATT_CHARACTERISTIC));
+        }
+
+        // Retrieve Characteristics
+        hr = BluetoothGATTGetCharacteristics(
+                hCurrService,
+                currGattService,
+                charBufferSize,
+                pCharBuffer,
+                &numChars,
+                BLUETOOTH_GATT_FLAG_NONE);
+
+        if (S_OK != hr) {
+            throw std::bad_alloc("Problem getting characteristics data");
+        }
+
+        if (numChars != charBufferSize) {
+            throw std::bad_alloc("Characteristics buffer size mismatch");
+        }
+    }*/
     GATTResponse response;
     return response.received();
 }
