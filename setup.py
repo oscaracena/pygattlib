@@ -88,7 +88,7 @@ elif sys.platform.startswith('linux'):
 
             define_macros = [('VERSION', '"5.25"')],
         )
-    ],
+    ]
 
     
 setup(
