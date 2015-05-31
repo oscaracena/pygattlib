@@ -79,15 +79,12 @@ elif sys.platform.startswith('linux'):
              'src/bluez/src/log.c',
              'src/bluez/btio/btio.c'],
 
-            libraries = glib_libs + boost_libs + [
-                "boost_thread", "bluetooth"
-            ],
+            libraries = glib_libs + boost_libs + ["boost_thread", "bluetooth"],
 
-            include_dirs = glib_headers + [
-                'src/bluez',
-            ],
+            include_dirs = glib_headers + [ 'src/bluez'],
 
-            define_macros = [('VERSION', '"5.25"')],
+            define_macros = [('VERSION', '"5.25"')]
+            
         )
     ]
 

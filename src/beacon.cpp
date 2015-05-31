@@ -37,9 +37,8 @@ BeaconService::enable_scan_mode() {
 		throw std::runtime_error("Enable scan failed");
 }
 
-#define BEACON_DATA_LEN 45
 
-StringDict
+BeaconDict
 BeaconService::get_advertisements(int timeout) {
 	struct hci_filter old_options;
 	socklen_t slen = sizeof(old_options);
@@ -63,7 +62,7 @@ BeaconService::get_advertisements(int timeout) {
 	wait.tv_sec = timeout;
 	int ts = time(NULL);
 
-	StringDict retval;
+	BeaconDict retval;
 	while(1) {
 		FD_ZERO(&read_set);
 		FD_SET(_device_desc, &read_set);
@@ -73,11 +72,12 @@ BeaconService::get_advertisements(int timeout) {
 			break;
 
 		len = read(_device_desc, buffer, sizeof(buffer));
-	    std::cout << "len: " << len << "\n";
-        if(len != BEACON_DATA_LEN) continue;
-		StringPair info = process_input(buffer, len);
+	    //std::cout << "len: " << len << "\n";
+        if(len != BEACON_LE_ADVERTISING_LEN) continue;
+        AddrBeaconPair info = process_input(buffer, len);
 		if (not retval.count(info.first) and not info.first.empty())
 			retval.insert(info);
+
 
 		int elapsed = time(NULL) - ts;
 		if (elapsed >= timeout)
@@ -91,36 +91,28 @@ BeaconService::get_advertisements(int timeout) {
 	return retval;
 }
 
-typedef struct {
-    uint16_t company_id;
-    uint8_t type;
-    uint8_t data_len;
-    uint8_t uuid[16];
-    uint16_t major;
-    uint16_t minor;
-    uint16_t power;
-} beacon_adv;
-
-#define LE_META_EVENT 0x0
-//#define LE_META_EVENT 0x3e
-#define EVT_LE_ADVERTISING_REPORT 0x02
-StringPair
+AddrBeaconPair
 BeaconService::process_input(unsigned char* buffer, int size) {
 	unsigned char* ptr = buffer + HCI_EVENT_HDR_SIZE + 1;
 	evt_le_meta_event* meta = (evt_le_meta_event*) ptr;
 
 	if (meta->subevent != EVT_LE_ADVERTISING_REPORT
-	        || (uint8_t)buffer[BLE_EVENT_TYPE] != LE_META_EVENT)
-		return StringPair();
+	        || (uint8_t)buffer[BLE_EVENT_TYPE] != LE_META_EVENT) {
+		return AddrBeaconPair();
+	}
 
     le_advertising_info* info = (le_advertising_info*) (meta->data + 1);
 	beacon_adv* beacon_info = (beacon_adv*) (info->data + 5);
+	if(beacon_info->company_id != BEACON_COMPANY_ID
+			|| beacon_info->type != BEACON_TYPE
+			|| beacon_info->data_len != BEACON_DATA_LEN) {
+		return AddrBeaconPair();
+	}
 
 	char addr[18];
 	ba2str(&info->bdaddr, addr);
 
-    return StringPair(addr,"");
-    return StringPair();
+    return AddrBeaconPair(addr, *beacon_info);
 }
 
 
@@ -137,12 +129,17 @@ BeaconService::disable_scan_mode() {
 boost::python::dict
 BeaconService::scan(int timeout) {
 	enable_scan_mode();
-	StringDict devices = get_advertisements(timeout);
+	BeaconDict devices = get_advertisements(timeout);
 	disable_scan_mode();
 
 	boost::python::dict retval;
-	for (StringDict::iterator i = devices.begin(); i != devices.end(); i++) {
-		retval[i->first] = i->second;
+	for (BeaconDict::iterator i = devices.begin(); i != devices.end(); i++) {
+		boost::python::list retn;
+		retn.append(i->second.uuid);//TODO pass uuid string
+		retn.append(i->second.major);
+		retn.append(i->second.minor);
+		retn.append(i->second.power);
+		retval[i->first] = retn;
 	}
 
 	return retval;

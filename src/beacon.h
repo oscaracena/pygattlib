@@ -8,6 +8,27 @@
 
 #include "gattservices.h"
 
+
+#define LE_META_EVENT 0x0
+#define EVT_LE_ADVERTISING_REPORT 0x02
+#define BEACON_LE_ADVERTISING_LEN 45
+#define BEACON_COMPANY_ID 0x4c //TODO
+#define BEACON_TYPE 0x4c //TODO
+#define BEACON_DATA_LEN 0x4c //TODO
+
+typedef struct {
+    uint16_t company_id;
+    uint8_t type;
+    uint8_t data_len;
+    uint8_t uuid[16];
+    uint16_t major;
+    uint16_t minor;
+    uint16_t power;
+} beacon_adv;
+typedef std::pair<std::string, beacon_adv> AddrBeaconPair;
+typedef std::map<std::string, beacon_adv> BeaconDict;
+
+
 class BeaconService : public DiscoveryService {
 public:
     BeaconService(const std::string device);
@@ -15,8 +36,8 @@ public:
 
 private:
 	void enable_scan_mode();
-	StringDict get_advertisements(int timeout);
-	StringPair process_input(unsigned char* buffer, int size);
+	BeaconDict get_advertisements(int timeout);
+	AddrBeaconPair process_input(unsigned char* buffer, int size);
 	void disable_scan_mode();
 
 };
