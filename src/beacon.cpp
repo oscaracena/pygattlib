@@ -16,6 +16,32 @@ extern "C" {
 
 #include "beacon.h"
 
+
+#define EIR_FLAGS                   0X01
+#define EIR_NAME_SHORT              0x08
+#define EIR_NAME_COMPLETE           0x09
+#define EIR_MANUFACTURE_SPECIFIC    0xFF
+
+
+#define LE_META_EVENT 0x0
+#define EVT_LE_ADVERTISING_REPORT 0x02
+#define BEACON_LE_ADVERTISING_LEN 45
+#define BEACON_COMPANY_ID 0x004c
+#define BEACON_TYPE 0x02
+#define BEACON_DATA_LEN 0x15
+
+typedef struct {
+    uint16_t company_id;
+    uint8_t type;
+    uint8_t data_len;
+    uint128_t uuid;
+    uint16_t major;
+    uint16_t minor;
+    uint8_t power;
+    int8_t rssi;
+} beacon_adv;
+
+
 BeaconService::BeaconService(const std::string device = "hci0")
         : DiscoveryService(device) {}
 
@@ -71,4 +97,133 @@ BeaconService::scan(int timeout) {
 	disable_scan_mode();
 
 	return retval;
+}
+
+
+void
+BeaconService::enable_beacon(const std::string uuid, int major, int minor,
+        int txpower, int interval) {
+
+    le_set_advertising_parameters_cp adv_params_cp;
+    memset(&adv_params_cp, 0, sizeof(adv_params_cp));
+    adv_params_cp.min_interval = htobs(interval);
+    adv_params_cp.max_interval = htobs(interval);
+    adv_params_cp.chan_map = 7;
+
+    uint8_t status;
+    struct hci_request rq;
+    memset(&rq, 0, sizeof(rq));
+    rq.ogf = OGF_LE_CTL;
+    rq.ocf = OCF_LE_SET_ADVERTISING_PARAMETERS;
+    rq.cparam = &adv_params_cp;
+    rq.clen = LE_SET_ADVERTISING_PARAMETERS_CP_SIZE;
+    rq.rparam = &status;
+    rq.rlen = 1;
+
+    int ret = hci_send_req(_device_desc, &rq, 1000);
+    if (ret < 0) {
+        throw std::runtime_error("Can't send hci request");
+    }
+
+    le_set_advertise_enable_cp advertise_cp;
+    memset(&advertise_cp, 0, sizeof(advertise_cp));
+    advertise_cp.enable = 0x01;
+
+    memset(&rq, 0, sizeof(rq));
+    rq.ogf = OGF_LE_CTL;
+    rq.ocf = OCF_LE_SET_ADVERTISE_ENABLE;
+    rq.cparam = &advertise_cp;
+    rq.clen = LE_SET_ADVERTISE_ENABLE_CP_SIZE;
+    rq.rparam = &status;
+    rq.rlen = 1;
+
+    ret = hci_send_req(_device_desc, &rq, 1000);
+    if (ret < 0) {
+        throw std::runtime_error("Can't send hci request");
+    }
+
+    le_set_advertising_data_cp adv_data_cp;
+    memset(&adv_data_cp, 0, sizeof(adv_data_cp));
+
+    uint8_t segment_length = 1;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(EIR_FLAGS); segment_length++;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x1A); segment_length++;
+    adv_data_cp.data[adv_data_cp.length] = htobs(segment_length - 1);
+
+    adv_data_cp.length += segment_length;
+
+    segment_length = 1;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(EIR_MANUFACTURE_SPECIFIC); segment_length++;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x4C); segment_length++;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x00); segment_length++;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x02); segment_length++;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x15); segment_length++;
+
+    //TODO uuid
+//    unsigned int *uuid = uuid_str_to_data(advertising_uuid);
+//    int i;
+//    for(i=0; i<strlen(advertising_uuid)/2; i++)
+//    {
+//      adv_data_cp.data[adv_data_cp.length + segment_length]  = htobs(uuid[i]); segment_length++;
+//    }
+
+    // Major number
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(major >> 8 & 0x00FF); segment_length++;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(major & 0x00FF); segment_length++;
+
+    // Minor number
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(minor >> 8 & 0x00FF); segment_length++;
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(minor & 0x00FF); segment_length++;
+
+    // RSSI calibration
+    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(uint8_t(txpower)); segment_length++;
+
+    adv_data_cp.data[adv_data_cp.length] = htobs(segment_length - 1);
+
+    adv_data_cp.length += segment_length;
+
+    memset(&rq, 0, sizeof(rq));
+    rq.ogf = OGF_LE_CTL;
+    rq.ocf = OCF_LE_SET_ADVERTISING_DATA;
+    rq.cparam = &adv_data_cp;
+    rq.clen = LE_SET_ADVERTISING_DATA_CP_SIZE;
+    rq.rparam = &status;
+    rq.rlen = 1;
+
+    ret = hci_send_req(_device_desc, &rq, 1000);
+    if(ret < 0) {
+        throw std::runtime_error("Can't send hci request");
+    }
+
+    if (status) {
+        throw std::runtime_error("LE set advertise enable on returned status");
+    }
+}
+
+void
+BeaconService::disable_beacon() {
+
+    le_set_advertise_enable_cp advertise_cp;
+    memset(&advertise_cp, 0, sizeof(advertise_cp));
+
+    uint8_t status;
+
+    struct hci_request rq;
+    memset(&rq, 0, sizeof(rq));
+    rq.ogf = OGF_LE_CTL;
+    rq.ocf = OCF_LE_SET_ADVERTISE_ENABLE;
+    rq.cparam = &advertise_cp;
+    rq.clen = LE_SET_ADVERTISE_ENABLE_CP_SIZE;
+    rq.rparam = &status;
+    rq.rlen = 1;
+
+    int ret = hci_send_req(_device_desc, &rq, 1000);
+    if (ret < 0) {
+        throw std::runtime_error("Can't set advertise mode");
+    }
+
+    if (status) {
+        throw std::runtime_error("LE set advertise enable on returned status");
+    }
+
 }
