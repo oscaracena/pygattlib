@@ -12,18 +12,19 @@
 #define LE_META_EVENT 0x0
 #define EVT_LE_ADVERTISING_REPORT 0x02
 #define BEACON_LE_ADVERTISING_LEN 45
-#define BEACON_COMPANY_ID 0x4c //TODO
-#define BEACON_TYPE 0x4c //TODO
-#define BEACON_DATA_LEN 0x4c //TODO
+#define BEACON_COMPANY_ID 0x004c
+#define BEACON_TYPE 0x02
+#define BEACON_DATA_LEN 0x15
 
 typedef struct {
     uint16_t company_id;
     uint8_t type;
     uint8_t data_len;
-    uint8_t uuid[16];
+    uint128_t uuid;
     uint16_t major;
     uint16_t minor;
-    uint16_t power;
+    uint8_t power;
+    int8_t rssi;
 } beacon_adv;
 typedef std::pair<std::string, beacon_adv> AddrBeaconPair;
 typedef std::map<std::string, beacon_adv> BeaconDict;

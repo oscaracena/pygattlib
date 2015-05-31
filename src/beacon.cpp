@@ -7,6 +7,10 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
+extern "C" {
+#include "lib/uuid.h"
+}
+
 #include <exception>
 #include <iostream>
 
@@ -72,7 +76,6 @@ BeaconService::get_advertisements(int timeout) {
 			break;
 
 		len = read(_device_desc, buffer, sizeof(buffer));
-	    //std::cout << "len: " << len << "\n";
         if(len != BEACON_LE_ADVERTISING_LEN) continue;
         AddrBeaconPair info = process_input(buffer, len);
 		if (not retval.count(info.first) and not info.first.empty())
@@ -103,6 +106,7 @@ BeaconService::process_input(unsigned char* buffer, int size) {
 
     le_advertising_info* info = (le_advertising_info*) (meta->data + 1);
 	beacon_adv* beacon_info = (beacon_adv*) (info->data + 5);
+
 	if(beacon_info->company_id != BEACON_COMPANY_ID
 			|| beacon_info->type != BEACON_TYPE
 			|| beacon_info->data_len != BEACON_DATA_LEN) {
@@ -135,10 +139,19 @@ BeaconService::scan(int timeout) {
 	boost::python::dict retval;
 	for (BeaconDict::iterator i = devices.begin(); i != devices.end(); i++) {
 		boost::python::list retn;
-		retn.append(i->second.uuid);//TODO pass uuid string
+
+		//uuid bytes to string conversion
+		char uuid[MAX_LEN_UUID_STR + 1];
+		uuid[MAX_LEN_UUID_STR] = '\0';
+		bt_uuid_t btuuid;
+		bt_uuid128_create(&btuuid, i->second.uuid);
+		bt_uuid_to_string(&btuuid, uuid, sizeof(uuid));
+
+		retn.append(uuid);
 		retn.append(i->second.major);
 		retn.append(i->second.minor);
 		retn.append(i->second.power);
+		retn.append(i->second.rssi);
 		retval[i->first] = retn;
 	}
 
