@@ -19,28 +19,6 @@ extern "C" {
 BeaconService::BeaconService(const std::string device = "hci0")
         : DiscoveryService(device) {}
 
-void
-BeaconService::enable_scan_mode() {
-	int result;
-	uint8_t scan_type = 0x01;
-	uint16_t interval = htobs(0x0010);
-	uint16_t window = htobs(0x0010);
-	uint8_t own_type = 0x00;
-	uint8_t filter_policy = 0x00;
-
-	result = hci_le_set_scan_parameters
-		(_device_desc, scan_type, interval, window,
-		 own_type, filter_policy, 10000);
-
-	if (result < 0)
-		throw std::runtime_error
-			("Set scan parameters failed (are you root?)");
-
-	result = hci_le_set_scan_enable(_device_desc, 0x01, 1, 10000);
-	if (result < 0)
-		throw std::runtime_error("Enable scan failed");
-}
-
 
 BeaconDict
 BeaconService::get_advertisements(int timeout) {
@@ -120,23 +98,13 @@ BeaconService::process_input(unsigned char* buffer, int size) {
 }
 
 
-void
-BeaconService::disable_scan_mode() {
-	if (_device_desc == -1)
-		throw std::runtime_error("Could not disable scan, not enabled yet");
-
-	int result = hci_le_set_scan_enable(_device_desc, 0x00, 1, 10000);
-	if (result < 0)
-		throw std::runtime_error("Disable scan failed");
-}
-
 boost::python::dict
 BeaconService::scan(int timeout) {
+	boost::python::dict retval;
 	enable_scan_mode();
 	BeaconDict devices = get_advertisements(timeout);
 	disable_scan_mode();
 
-	boost::python::dict retval;
 	for (BeaconDict::iterator i = devices.begin(); i != devices.end(); i++) {
 		boost::python::list retn;
 

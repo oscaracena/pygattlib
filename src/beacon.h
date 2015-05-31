@@ -36,10 +36,8 @@ public:
 	boost::python::dict scan(int timeout);
 
 private:
-	void enable_scan_mode();
 	BeaconDict get_advertisements(int timeout);
 	AddrBeaconPair process_input(unsigned char* buffer, int size);
-	void disable_scan_mode();
 
 };
 
