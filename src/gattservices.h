@@ -15,9 +15,6 @@
 #define BLE_EVENT_TYPE     0x05
 #define BLE_SCAN_RESPONSE  0x04
 
-typedef std::pair<std::string, std::string> StringPair;
-typedef std::map<std::string, std::string> StringDict;
-
 class DiscoveryService {
 public:
 	DiscoveryService(const std::string device);
@@ -27,8 +24,9 @@ public:
 
 protected:
 	void enable_scan_mode();
-	StringDict get_advertisements(int timeout);
-	StringPair process_input(unsigned char* buffer, int size);
+	void get_advertisements(int timeout, boost::python::dict & ret);
+	virtual void process_input(unsigned char* buffer, int size,
+			boost::python::dict & ret);
 	std::string parse_name(uint8_t* data, size_t size);
 	void disable_scan_mode();
 

@@ -20,66 +20,17 @@ BeaconService::BeaconService(const std::string device = "hci0")
         : DiscoveryService(device) {}
 
 
-BeaconDict
-BeaconService::get_advertisements(int timeout) {
-	struct hci_filter old_options;
-	socklen_t slen = sizeof(old_options);
-	if (getsockopt(_device_desc, SOL_HCI, HCI_FILTER,
-				   &old_options, &slen) < 0)
-		throw std::runtime_error("Could not get socket options");
+void
+BeaconService::process_input(unsigned char* buffer, int size,
+		boost::python::dict & ret) {
+	if(size != BEACON_LE_ADVERTISING_LEN) return;
 
-	struct hci_filter new_options;
-	hci_filter_clear(&new_options);
-	hci_filter_set_ptype(HCI_EVENT_PKT, &new_options);
-	hci_filter_set_event(EVT_LE_META_EVENT, &new_options);
-
-	if (setsockopt(_device_desc, SOL_HCI, HCI_FILTER,
-				   &new_options, sizeof(new_options)) < 0)
-		throw std::runtime_error("Could not set socket options\n");
-
-	int len;
-	unsigned char buffer[HCI_MAX_EVENT_SIZE];
-	struct timeval wait;
-	fd_set read_set;
-	wait.tv_sec = timeout;
-	int ts = time(NULL);
-
-	BeaconDict retval;
-	while(1) {
-		FD_ZERO(&read_set);
-		FD_SET(_device_desc, &read_set);
-
-		int ret = select(FD_SETSIZE, &read_set, NULL, NULL, &wait);
-		if (ret <= 0)
-			break;
-
-		len = read(_device_desc, buffer, sizeof(buffer));
-        if(len != BEACON_LE_ADVERTISING_LEN) continue;
-        AddrBeaconPair info = process_input(buffer, len);
-		if (not retval.count(info.first) and not info.first.empty())
-			retval.insert(info);
-
-
-		int elapsed = time(NULL) - ts;
-		if (elapsed >= timeout)
-			break;
-
-		wait.tv_sec = timeout - elapsed;
-	}
-
-	setsockopt(_device_desc, SOL_HCI, HCI_FILTER,
-			   &old_options, sizeof(old_options));
-	return retval;
-}
-
-AddrBeaconPair
-BeaconService::process_input(unsigned char* buffer, int size) {
 	unsigned char* ptr = buffer + HCI_EVENT_HDR_SIZE + 1;
 	evt_le_meta_event* meta = (evt_le_meta_event*) ptr;
 
 	if (meta->subevent != EVT_LE_ADVERTISING_REPORT
 	        || (uint8_t)buffer[BLE_EVENT_TYPE] != LE_META_EVENT) {
-		return AddrBeaconPair();
+		return;
 	}
 
     le_advertising_info* info = (le_advertising_info*) (meta->data + 1);
@@ -88,40 +39,36 @@ BeaconService::process_input(unsigned char* buffer, int size) {
 	if(beacon_info->company_id != BEACON_COMPANY_ID
 			|| beacon_info->type != BEACON_TYPE
 			|| beacon_info->data_len != BEACON_DATA_LEN) {
-		return AddrBeaconPair();
+		return;
 	}
 
 	char addr[18];
 	ba2str(&info->bdaddr, addr);
+	boost::python::list data;
 
-    return AddrBeaconPair(addr, *beacon_info);
+	//uuid bytes to string conversion
+	char uuid[MAX_LEN_UUID_STR + 1];
+	uuid[MAX_LEN_UUID_STR] = '\0';
+	bt_uuid_t btuuid;
+	bt_uuid128_create(&btuuid, beacon_info->uuid);
+	bt_uuid_to_string(&btuuid, uuid, sizeof(uuid));
+
+	data.append(uuid);
+	data.append(beacon_info->major);
+	data.append(beacon_info->minor);
+	data.append(beacon_info->power);
+	data.append(beacon_info->rssi);
+	ret[addr] = data;
 }
 
 
 boost::python::dict
 BeaconService::scan(int timeout) {
 	boost::python::dict retval;
+
 	enable_scan_mode();
-	BeaconDict devices = get_advertisements(timeout);
+	get_advertisements(timeout, retval);
 	disable_scan_mode();
-
-	for (BeaconDict::iterator i = devices.begin(); i != devices.end(); i++) {
-		boost::python::list retn;
-
-		//uuid bytes to string conversion
-		char uuid[MAX_LEN_UUID_STR + 1];
-		uuid[MAX_LEN_UUID_STR] = '\0';
-		bt_uuid_t btuuid;
-		bt_uuid128_create(&btuuid, i->second.uuid);
-		bt_uuid_to_string(&btuuid, uuid, sizeof(uuid));
-
-		retn.append(uuid);
-		retn.append(i->second.major);
-		retn.append(i->second.minor);
-		retn.append(i->second.power);
-		retn.append(i->second.rssi);
-		retval[i->first] = retn;
-	}
 
 	return retval;
 }

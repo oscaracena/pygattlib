@@ -52,8 +52,8 @@ DiscoveryService::enable_scan_mode() {
 		throw std::runtime_error("Enable scan failed");
 }
 
-StringDict
-DiscoveryService::get_advertisements(int timeout) {
+void
+DiscoveryService::get_advertisements(int timeout, boost::python::dict & ret) {
 	struct hci_filter old_options;
 	socklen_t slen = sizeof(old_options);
 	if (getsockopt(_device_desc, SOL_HCI, HCI_FILTER,
@@ -76,19 +76,16 @@ DiscoveryService::get_advertisements(int timeout) {
 	wait.tv_sec = timeout;
 	int ts = time(NULL);
 
-	StringDict retval;
 	while(1) {
 		FD_ZERO(&read_set);
 		FD_SET(_device_desc, &read_set);
 
-		int ret = select(FD_SETSIZE, &read_set, NULL, NULL, &wait);
-		if (ret <= 0)
+		int err = select(FD_SETSIZE, &read_set, NULL, NULL, &wait);
+		if (err <= 0)
 			break;
 
 		len = read(_device_desc, buffer, sizeof(buffer));
-		StringPair info = process_input(buffer, len);
-		if (not retval.count(info.first) and not info.first.empty())
-			retval.insert(info);
+        process_input(buffer, len, ret);
 
 		int elapsed = time(NULL) - ts;
 		if (elapsed >= timeout)
@@ -99,16 +96,16 @@ DiscoveryService::get_advertisements(int timeout) {
 
 	setsockopt(_device_desc, SOL_HCI, HCI_FILTER,
 			   &old_options, sizeof(old_options));
-	return retval;
 }
 
-StringPair
-DiscoveryService::process_input(unsigned char* buffer, int size) {
+void
+DiscoveryService::process_input(unsigned char* buffer, int size,
+		boost::python::dict & ret) {
 	unsigned char* ptr = buffer + HCI_EVENT_HDR_SIZE + 1;
 	evt_le_meta_event* meta = (evt_le_meta_event*) ptr;
 
 	if (meta->subevent != 0x02 || (uint8_t)buffer[BLE_EVENT_TYPE] != BLE_SCAN_RESPONSE)
-		return StringPair();
+		return;
 
 	le_advertising_info* info;
 	info = (le_advertising_info*) (meta->data + 1);
@@ -117,7 +114,7 @@ DiscoveryService::process_input(unsigned char* buffer, int size) {
 	ba2str(&info->bdaddr, addr);
 
 	std::string name = parse_name(info->data, info->length);
-	return StringPair(addr, name);
+	ret[addr] = name;
 }
 
 std::string
@@ -161,14 +158,10 @@ DiscoveryService::disable_scan_mode() {
 
 boost::python::dict
 DiscoveryService::discover(int timeout) {
-	enable_scan_mode();
-	StringDict devices = get_advertisements(timeout);
-	disable_scan_mode();
-
 	boost::python::dict retval;
-	for (StringDict::iterator i = devices.begin(); i != devices.end(); i++) {
-		retval[i->first] = i->second;
-	}
+	enable_scan_mode();
+	get_advertisements(timeout, retval);
+	disable_scan_mode();
 
 	return retval;
 }

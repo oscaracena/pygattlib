@@ -35,9 +35,9 @@ public:
     BeaconService(const std::string device);
 	boost::python::dict scan(int timeout);
 
-private:
-	BeaconDict get_advertisements(int timeout);
-	AddrBeaconPair process_input(unsigned char* buffer, int size);
+protected:
+	void process_input(unsigned char* buffer, int size,
+			boost::python::dict & ret);
 
 };
 
