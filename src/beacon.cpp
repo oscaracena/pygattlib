@@ -154,33 +154,19 @@ BeaconService::enable_beacon(const std::string uuid, int major, int minor,
 
     segment_length = 1;
     adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(EIR_MANUFACTURE_SPECIFIC); segment_length++;
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x4C); segment_length++;
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x00); segment_length++;
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x02); segment_length++;
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(0x15); segment_length++;
 
-    //TODO uuid
-//    unsigned int *uuid = uuid_str_to_data(advertising_uuid);
-//    int i;
-//    for(i=0; i<strlen(advertising_uuid)/2; i++)
-//    {
-//      adv_data_cp.data[adv_data_cp.length + segment_length]  = htobs(uuid[i]); segment_length++;
-//    }
+    beacon_adv * beacon_data = (beacon_adv *)(&adv_data_cp.data[adv_data_cp.length + segment_length]);
+    beacon_data->company_id = htobs(0x4C);
+    beacon_data->type = htobs(0x02);
+    beacon_data->data_len = htobs(0x15);
 
-    // Major number
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(major >> 8 & 0x00FF); segment_length++;
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(major & 0x00FF); segment_length++;
+    //beacon_data->uuid = (uint128_t)0; //TODO
+    beacon_data->major = htobs(major);
+    beacon_data->minor = htobs(minor);
+    beacon_data->power = htobs(uint8_t(txpower));
 
-    // Minor number
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(minor >> 8 & 0x00FF); segment_length++;
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(minor & 0x00FF); segment_length++;
-
-    // RSSI calibration
-    adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(uint8_t(txpower)); segment_length++;
-
-    adv_data_cp.data[adv_data_cp.length] = htobs(segment_length - 1);
-
-    adv_data_cp.length += segment_length;
+    adv_data_cp.data[adv_data_cp.length] = htobs(segment_length - 1 + sizeof(beacon_adv) - 1);
+    adv_data_cp.length += adv_data_cp.data[adv_data_cp.length] + 1;
 
     memset(&rq, 0, sizeof(rq));
     rq.ogf = OGF_LE_CTL;
