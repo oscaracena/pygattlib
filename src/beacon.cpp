@@ -8,30 +8,15 @@
 #include <bluetooth/hci_lib.h>
 
 #include <exception>
+#include <iostream>
 
-#include "gattlib.h"
-#include "gattservices.h"
+#include "beacon.h"
 
-DiscoveryService::DiscoveryService(const std::string device = "hci0") :
-	_device(device),
-	_device_desc(-1) {
-
-	int dev_id = hci_devid(device.c_str());
-	if (dev_id < 0)
-		throw std::runtime_error("Invalid device!");
-
-	_device_desc = hci_open_dev(dev_id);
-	if (_device_desc < 0)
-		throw std::runtime_error("Could not open device!");
-	}
-
-DiscoveryService::~DiscoveryService() {
-	if (_device_desc != -1)
-		hci_close_dev(_device_desc);
-}
+BeaconService::BeaconService(const std::string device = "hci0")
+        : DiscoveryService(device) {}
 
 void
-DiscoveryService::enable_scan_mode() {
+BeaconService::enable_scan_mode() {
 	int result;
 	uint8_t scan_type = 0x01;
 	uint16_t interval = htobs(0x0010);
@@ -52,8 +37,10 @@ DiscoveryService::enable_scan_mode() {
 		throw std::runtime_error("Enable scan failed");
 }
 
+#define BEACON_DATA_LEN 45
+
 StringDict
-DiscoveryService::get_advertisements(int timeout) {
+BeaconService::get_advertisements(int timeout) {
 	struct hci_filter old_options;
 	socklen_t slen = sizeof(old_options);
 	if (getsockopt(_device_desc, SOL_HCI, HCI_FILTER,
@@ -86,6 +73,8 @@ DiscoveryService::get_advertisements(int timeout) {
 			break;
 
 		len = read(_device_desc, buffer, sizeof(buffer));
+	    std::cout << "len: " << len << "\n";
+        if(len != BEACON_DATA_LEN) continue;
 		StringPair info = process_input(buffer, len);
 		if (not retval.count(info.first) and not info.first.empty())
 			retval.insert(info);
@@ -102,55 +91,41 @@ DiscoveryService::get_advertisements(int timeout) {
 	return retval;
 }
 
+typedef struct {
+    uint16_t company_id;
+    uint8_t type;
+    uint8_t data_len;
+    uint8_t uuid[16];
+    uint16_t major;
+    uint16_t minor;
+    uint16_t power;
+} beacon_adv;
+
+#define LE_META_EVENT 0x0
+//#define LE_META_EVENT 0x3e
+#define EVT_LE_ADVERTISING_REPORT 0x02
 StringPair
-DiscoveryService::process_input(unsigned char* buffer, int size) {
+BeaconService::process_input(unsigned char* buffer, int size) {
 	unsigned char* ptr = buffer + HCI_EVENT_HDR_SIZE + 1;
 	evt_le_meta_event* meta = (evt_le_meta_event*) ptr;
 
-	if (meta->subevent != 0x02 || (uint8_t)buffer[BLE_EVENT_TYPE] != BLE_SCAN_RESPONSE)
+	if (meta->subevent != EVT_LE_ADVERTISING_REPORT
+	        || (uint8_t)buffer[BLE_EVENT_TYPE] != LE_META_EVENT)
 		return StringPair();
 
-	le_advertising_info* info;
-	info = (le_advertising_info*) (meta->data + 1);
+    le_advertising_info* info = (le_advertising_info*) (meta->data + 1);
+	beacon_adv* beacon_info = (beacon_adv*) (info->data + 5);
 
 	char addr[18];
 	ba2str(&info->bdaddr, addr);
 
-	std::string name = parse_name(info->data, info->length);
-	return StringPair(addr, name);
+    return StringPair(addr,"");
+    return StringPair();
 }
 
-std::string
-DiscoveryService::parse_name(uint8_t* data, size_t size) {
-	size_t offset = 0;
-	std::string unknown = "";
-
-	while (offset < size) {
-		uint8_t field_len = data[0];
-		size_t name_len;
-
-		if (field_len == 0 || offset + field_len > size)
-			return unknown;
-
-		switch (data[1]) {
-		case EIR_NAME_SHORT:
-		case EIR_NAME_COMPLETE:
-			name_len = field_len - 1;
-			if (name_len > size)
-				return unknown;
-
-			return std::string((const char*)(data + 2), name_len);
-		}
-
-		offset += field_len + 1;
-		data += field_len + 1;
-	}
-
-	return unknown;
-}
 
 void
-DiscoveryService::disable_scan_mode() {
+BeaconService::disable_scan_mode() {
 	if (_device_desc == -1)
 		throw std::runtime_error("Could not disable scan, not enabled yet");
 
@@ -160,7 +135,7 @@ DiscoveryService::disable_scan_mode() {
 }
 
 boost::python::dict
-DiscoveryService::discover(int timeout) {
+BeaconService::scan(int timeout) {
 	enable_scan_mode();
 	StringDict devices = get_advertisements(timeout);
 	disable_scan_mode();

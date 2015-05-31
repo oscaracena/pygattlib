@@ -8,6 +8,7 @@
 
 #include "gattlib.h"
 #include "gattservices.h"
+#include "beacon.h"
 
 using namespace boost::python;
 
@@ -106,17 +107,17 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("write_by_handle", &GATTRequester::write_by_handle)
         .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
         .def("on_notification", &GATTRequesterCb::default_on_notification)
-        .def("on_indication", &GATTRequesterCb::default_on_indication)
-        ;
+        .def("on_indication", &GATTRequesterCb::default_on_indication);
 
     register_ptr_to_python<GATTResponse*>();
 
     class_<GATTResponse, boost::noncopyable, GATTResponseCb>("GATTResponse")
         .def("received", &GATTResponse::received)
         .def("on_response", &GATTResponseCb::default_on_response);
-    ;
 
     class_<DiscoveryService>("DiscoveryService", init<std::string>())
-        .def("discover", &DiscoveryService::discover)
-        ;
+        .def("discover", &DiscoveryService::discover);
+
+    class_<BeaconService>("BeaconService", init<std::string>())
+        .def("scan", &BeaconService::scan);
 }

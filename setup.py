@@ -67,6 +67,7 @@ elif sys.platform.startswith('linux'):
         Extension(
             'gattlib',
             ['src/gattservices.cpp',
+             'src/beacon.cpp',
              'src/bindings.cpp',
              'src/gattlib.cpp',
              'src/bluez/lib/uuid.c',
@@ -88,7 +89,7 @@ elif sys.platform.startswith('linux'):
 
             define_macros = [('VERSION', '"5.25"')],
         )
-    ],
+    ]
 
     
 setup(

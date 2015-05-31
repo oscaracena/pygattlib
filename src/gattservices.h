@@ -21,11 +21,11 @@ typedef std::map<std::string, std::string> StringDict;
 class DiscoveryService {
 public:
 	DiscoveryService(const std::string device);
-	~DiscoveryService();
+	virtual ~DiscoveryService();
 	boost::python::dict discover(int timeout);
 
 
-private:
+protected:
 	void enable_scan_mode();
 	StringDict get_advertisements(int timeout);
 	StringPair process_input(unsigned char* buffer, int size);
