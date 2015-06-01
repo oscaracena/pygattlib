@@ -104,6 +104,13 @@ void
 BeaconService::enable_beacon(const std::string uuid, int major, int minor,
         int txpower, int interval) {
 
+    //TODO arguments validation
+    bt_uuid_t btuuid;
+    int ret = bt_string_to_uuid(&btuuid, uuid.c_str());
+    if (ret < 0) {
+        throw std::runtime_error("Incorrect uuid format");
+    }
+
     le_set_advertising_parameters_cp adv_params_cp;
     memset(&adv_params_cp, 0, sizeof(adv_params_cp));
     adv_params_cp.min_interval = htobs(interval);
@@ -120,7 +127,7 @@ BeaconService::enable_beacon(const std::string uuid, int major, int minor,
     rq.rparam = &status;
     rq.rlen = 1;
 
-    int ret = hci_send_req(_device_desc, &rq, 1000);
+    ret = hci_send_req(_device_desc, &rq, 1000);
     if (ret < 0) {
         throw std::runtime_error("Can't send hci request");
     }
@@ -160,7 +167,7 @@ BeaconService::enable_beacon(const std::string uuid, int major, int minor,
     beacon_data->type = htobs(0x02);
     beacon_data->data_len = htobs(0x15);
 
-    //beacon_data->uuid = (uint128_t)0; //TODO
+    beacon_data->uuid = btuuid.value.u128;
     beacon_data->major = htobs(major);
     beacon_data->minor = htobs(minor);
     beacon_data->power = htobs(uint8_t(txpower));
