@@ -95,29 +95,31 @@ BOOST_PYTHON_MODULE(gattlib) {
     register_ptr_to_python<GATTRequester*>();
 
     class_<GATTRequester, boost::noncopyable, GATTRequesterCb>
-        ("GATTRequester", init<std::string, optional<bool> >())
+            ("GATTRequester", init<std::string, optional<bool> >())
 
-        .def("connect", &GATTRequester::connect)
-        .def("is_connected", &GATTRequester::is_connected)
-        .def("disconnect", &GATTRequester::disconnect)
-        .def("read_by_handle", &GATTRequester::read_by_handle)
-        .def("read_by_handle_async", &GATTRequester::read_by_handle_async)
-        .def("read_by_uuid", &GATTRequester::read_by_uuid)
-        .def("read_by_uuid_async", &GATTRequester::read_by_uuid_async)
-        .def("write_by_handle", &GATTRequester::write_by_handle)
-        .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
-        .def("on_notification", &GATTRequesterCb::default_on_notification)
-        .def("on_indication", &GATTRequesterCb::default_on_indication);
+            .def("connect", &GATTRequester::connect)
+            .def("is_connected", &GATTRequester::is_connected)
+            .def("disconnect", &GATTRequester::disconnect)
+            .def("read_by_handle", &GATTRequester::read_by_handle)
+            .def("read_by_handle_async", &GATTRequester::read_by_handle_async)
+            .def("read_by_uuid", &GATTRequester::read_by_uuid)
+            .def("read_by_uuid_async", &GATTRequester::read_by_uuid_async)
+            .def("write_by_handle", &GATTRequester::write_by_handle)
+            .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
+            .def("on_notification", &GATTRequesterCb::default_on_notification)
+            .def("on_indication", &GATTRequesterCb::default_on_indication);
 
     register_ptr_to_python<GATTResponse*>();
 
     class_<GATTResponse, boost::noncopyable, GATTResponseCb>("GATTResponse")
-        .def("received", &GATTResponse::received)
-        .def("on_response", &GATTResponseCb::default_on_response);
+            .def("received", &GATTResponse::received)
+            .def("on_response", &GATTResponseCb::default_on_response);
 
     class_<DiscoveryService>("DiscoveryService", init<std::string>())
-        .def("discover", &DiscoveryService::discover);
+            .def("discover", &DiscoveryService::discover);
 
     class_<BeaconService>("BeaconService", init<std::string>())
-        .def("scan", &BeaconService::scan);
+            .def("scan", &BeaconService::scan)
+            .def("start_advertising", &BeaconService::start_advertising)
+            .def("stop_advertising", &BeaconService::stop_advertising);
 }

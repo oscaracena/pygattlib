@@ -13,9 +13,11 @@ class BeaconService : public DiscoveryService {
 public:
     BeaconService(const std::string device);
 	boost::python::dict scan(int timeout);
-	void enable_beacon(const std::string uuid, int major, int minor,
-	        int txpower, int interval);
-    void disable_beacon();
+	void start_advertising(
+	        const std::string uuid="11111111-2222-3333-4444-555555555555",
+	        int major=1, int minor=1,
+	        int txpower=1, int interval=200);
+    void stop_advertising();
 
 protected:
 	void process_input(unsigned char* buffer, int size,

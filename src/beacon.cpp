@@ -101,7 +101,7 @@ BeaconService::scan(int timeout) {
 
 
 void
-BeaconService::enable_beacon(const std::string uuid, int major, int minor,
+BeaconService::start_advertising(const std::string uuid, int major, int minor,
         int txpower, int interval) {
 
     //TODO arguments validation
@@ -194,7 +194,7 @@ BeaconService::enable_beacon(const std::string uuid, int major, int minor,
 }
 
 void
-BeaconService::disable_beacon() {
+BeaconService::stop_advertising() {
 
     le_set_advertise_enable_cp advertise_cp;
     memset(&advertise_cp, 0, sizeof(advertise_cp));
