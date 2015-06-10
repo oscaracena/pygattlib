@@ -5,6 +5,7 @@
 
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
+#include <boost/python/overloads.hpp>
 
 #include "gattlib.h"
 #include "gattservices.h"
@@ -90,6 +91,9 @@ private:
     PyObject* self;
 };
 
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
+        start_advertising, BeaconService::start_advertising, 0, 5)
+
 BOOST_PYTHON_MODULE(gattlib) {
 
     register_ptr_to_python<GATTRequester*>();
@@ -120,6 +124,9 @@ BOOST_PYTHON_MODULE(gattlib) {
 
     class_<BeaconService>("BeaconService", init<std::string>())
             .def("scan", &BeaconService::scan)
-            .def("start_advertising", &BeaconService::start_advertising)
+            .def("start_advertising", &BeaconService::start_advertising,
+                    start_advertising(
+                        args("uuid", "major", "minor", "txpower", "interval"),
+                        "starts advertising beacon packets"))
             .def("stop_advertising", &BeaconService::stop_advertising);
 }
