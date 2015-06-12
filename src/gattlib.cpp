@@ -87,10 +87,10 @@ GATTResponse::received() {
     return _data;
 }
 
-GATTRequester::GATTRequester(std::string address, bool do_connect
-        , std::string device) :
+GATTRequester::GATTRequester(std::string address, bool do_connect,
+        std::string device) :
     _state(STATE_DISCONNECTED),
-    _device("hci0"),
+    _device(device),
     _address(address),
     _hci_socket(-1),
     _channel(NULL),

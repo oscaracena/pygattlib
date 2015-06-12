@@ -95,24 +95,31 @@ private:
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         start_advertising, BeaconService::start_advertising, 0, 5)
 
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
+        gattrequester_connect, GATTRequester::connect, 0, 3)
+
 BOOST_PYTHON_MODULE(gattlib) {
 
     register_ptr_to_python<GATTRequester*>();
 
-    class_<GATTRequester, boost::noncopyable, GATTRequesterCb>
-            ("GATTRequester", init<std::string, optional<bool> >())
+    class_<GATTRequester, boost::noncopyable, GATTRequesterCb> ("GATTRequester",
+            init<std::string, optional<bool, std::string> >())
 
-            .def("connect", &GATTRequester::connect)
-            .def("is_connected", &GATTRequester::is_connected)
-            .def("disconnect", &GATTRequester::disconnect)
-            .def("read_by_handle", &GATTRequester::read_by_handle)
-            .def("read_by_handle_async", &GATTRequester::read_by_handle_async)
-            .def("read_by_uuid", &GATTRequester::read_by_uuid)
-            .def("read_by_uuid_async", &GATTRequester::read_by_uuid_async)
-            .def("write_by_handle", &GATTRequester::write_by_handle)
-            .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
-            .def("on_notification", &GATTRequesterCb::default_on_notification)
-            .def("on_indication", &GATTRequesterCb::default_on_indication);
+        .def("connect", &GATTRequester::connect)
+        .def("connect", &GATTRequester::connect,
+                gattrequester_connect(
+                    args("wait", "channel_type", "security_level"),
+                    "connects"))
+        .def("is_connected", &GATTRequester::is_connected)
+        .def("disconnect", &GATTRequester::disconnect)
+        .def("read_by_handle", &GATTRequester::read_by_handle)
+        .def("read_by_handle_async", &GATTRequester::read_by_handle_async)
+        .def("read_by_uuid", &GATTRequester::read_by_uuid)
+        .def("read_by_uuid_async", &GATTRequester::read_by_uuid_async)
+        .def("write_by_handle", &GATTRequester::write_by_handle)
+        .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
+        .def("on_notification", &GATTRequesterCb::default_on_notification)
+        .def("on_indication", &GATTRequesterCb::default_on_indication);
 
     register_ptr_to_python<GATTResponse*>();
 
