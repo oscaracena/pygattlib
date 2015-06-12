@@ -50,13 +50,15 @@ void connect_cb(GIOChannel* channel, GError* err, gpointer user_data);
 
 class GATTRequester {
 public:
-	GATTRequester(std::string address, bool do_connect=true);
+	GATTRequester(std::string address,
+			bool do_connect=true, std::string device="hci0");
 	virtual ~GATTRequester();
 
 	virtual void on_notification(const uint16_t handle, const std::string data);
 	virtual void on_indication(const uint16_t handle, const std::string data);
 
-	void connect(bool wait=false);
+	void connect(bool wait=false, std::string channel_type="public",
+			std::string security_level="low");
 	bool is_connected();
 	void disconnect();
 	void read_by_handle_async(uint16_t handle, GATTResponse* response);

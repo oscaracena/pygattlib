@@ -48,8 +48,9 @@ private:
 
 class GATTRequesterCb : public GATTRequester {
 public:
-    GATTRequesterCb(PyObject* p, std::string address, bool do_connect=true) :
-        GATTRequester(address, do_connect),
+    GATTRequesterCb(PyObject* p, std::string address,
+            bool do_connect=true, std::string device="hci0") :
+        GATTRequester(address, do_connect, device),
         self(p) {
     }
 
