@@ -9,46 +9,7 @@ from distutils.core import setup, Extension
 
 extension_modules = list()
 
-def find_MS_SDK():
-    candidate_roots = (os.getenv('ProgramFiles'), os.getenv('ProgramW6432'),
-            os.getenv('ProgramFiles(x86)'))
-
-    if sys.version < '3.3':
-        MS_SDK = r'Microsoft SDKs\Windows\v6.0A' # Visual Studio 9
-    else:
-        MS_SDK = r'Microsoft SDKs\Windows\v7.0A' # Visual Studio 10
-
-    candidate_paths = (
-            MS_SDK,
-            'Microsoft Platform SDK for Windows XP',
-            'Microsoft Platform SDK',
-    )
-
-    for candidate_root in candidate_roots:
-        for candidate_path in candidate_paths:
-            candidate_sdk = os.path.join(candidate_root, candidate_path)
-            if os.path.exists(candidate_sdk):
-                return candidate_sdk
-
-if sys.platform == 'win32':
-    PSDK_PATH = find_MS_SDK()
-    if PSDK_PATH is None:
-        raise SystemExit("Could not find the Windows Platform SDK")
-
-    lib_path = os.path.join(PSDK_PATH, 'Lib')
-    if '64' in platform.architecture()[0]:
-        lib_path = os.path.join(lib_path, 'x64')
-
-    ext_mod = Extension ('gattlib',
-                        include_dirs = [
-                                "%s/Include" % PSDK_PATH,
-                                "./win",
-                                "c:\\local\\boost_1_58_0\\"],
-                        library_dirs = [lib_path, "c:\\local\\boost_1_58_0\\stage\\lib\\"],
-                        extra_compile_args = [ '/EHsc' ],
-                        sources=['win/bindings.cpp', 'win/gattlib.cpp', 'win/gattservices.cpp'],)
-    extension_modules = [ ext_mod ]
-elif sys.platform.startswith('linux'):
+if sys.platform.startswith('linux'):
     glib_headers = subprocess.check_output(
         "pkg-config --cflags glib-2.0".split()).decode('utf-8')
     glib_headers = glib_headers.strip().split("-I")
@@ -87,6 +48,8 @@ elif sys.platform.startswith('linux'):
             
         )
     ]
+else:
+    raise OSError("Not supported OS")
 
     
 setup(
