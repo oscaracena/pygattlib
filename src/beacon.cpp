@@ -17,7 +17,7 @@ extern "C" {
 #include "beacon.h"
 
 
-#define EIR_FLAGS                   0X01
+#define EIR_FLAGS                   0x01
 #define EIR_NAME_SHORT              0x08
 #define EIR_NAME_COMPLETE           0x09
 #define EIR_MANUFACTURE_SPECIFIC    0xFF
@@ -99,16 +99,25 @@ BeaconService::scan(int timeout) {
 	return retval;
 }
 
+#define MAJOR_MINOR_LIMIT 65535
 
 void
 BeaconService::start_advertising(const std::string uuid, int major, int minor,
         int txpower, int interval) {
 
-    //TODO arguments validation
     bt_uuid_t btuuid;
     int ret = bt_string_to_uuid(&btuuid, uuid.c_str());
     if (ret < 0) {
         throw std::runtime_error("Incorrect uuid format");
+    }
+    if(!(0 < major && major <= MAJOR_MINOR_LIMIT)) {
+        throw std::runtime_error("Incorrect major value(must be: 1 to 65535)");
+    }
+    if(!(0 < minor && minor <= MAJOR_MINOR_LIMIT)) {
+        throw std::runtime_error("Incorrect minor value(must be: 1 to 65535)");
+    }
+    if(!(-40 < txpower && txpower <= 4)) {
+        throw std::runtime_error("Incorrect txpower value(must be: -40 to 4)");
     }
 
     le_set_advertising_parameters_cp adv_params_cp;
@@ -163,9 +172,9 @@ BeaconService::start_advertising(const std::string uuid, int major, int minor,
     adv_data_cp.data[adv_data_cp.length + segment_length] = htobs(EIR_MANUFACTURE_SPECIFIC); segment_length++;
 
     beacon_adv * beacon_data = (beacon_adv *)(&adv_data_cp.data[adv_data_cp.length + segment_length]);
-    beacon_data->company_id = htobs(0x4C);
-    beacon_data->type = htobs(0x02);
-    beacon_data->data_len = htobs(0x15);
+    beacon_data->company_id = htobs(BEACON_COMPANY_ID);
+    beacon_data->type = htobs(BEACON_TYPE);
+    beacon_data->data_len = htobs(BEACON_DATA_LEN);
 
     beacon_data->uuid = btuuid.value.u128;
     beacon_data->major = htobs(major);
