@@ -127,10 +127,10 @@ BOOST_PYTHON_MODULE(gattlib) {
             .def("received", &GATTResponse::received)
             .def("on_response", &GATTResponseCb::default_on_response);
 
-    class_<DiscoveryService>("DiscoveryService", init<std::string>())
+    class_<DiscoveryService>("DiscoveryService", init<optional<std::string> >())
             .def("discover", &DiscoveryService::discover);
 
-    class_<BeaconService>("BeaconService", init<std::string>())
+    class_<BeaconService>("BeaconService", init<optional<std::string> >())
             .def("scan", &BeaconService::scan)
             .def("start_advertising", &BeaconService::start_advertising,
                     start_advertising(

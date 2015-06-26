@@ -17,7 +17,7 @@
 
 class DiscoveryService {
 public:
-	DiscoveryService(const std::string device);
+	DiscoveryService(const std::string device="hci0");
 	virtual ~DiscoveryService();
 	boost::python::dict discover(int timeout);
 

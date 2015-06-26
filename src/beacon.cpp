@@ -42,7 +42,7 @@ typedef struct {
 } beacon_adv;
 
 
-BeaconService::BeaconService(const std::string device = "hci0")
+BeaconService::BeaconService(const std::string device)
         : DiscoveryService(device) {}
 
 

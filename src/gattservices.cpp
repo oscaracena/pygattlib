@@ -12,7 +12,7 @@
 #include "gattlib.h"
 #include "gattservices.h"
 
-DiscoveryService::DiscoveryService(const std::string device = "hci0") :
+DiscoveryService::DiscoveryService(const std::string device) :
 	_device(device),
 	_device_desc(-1) {
 
