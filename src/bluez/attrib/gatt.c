@@ -177,7 +177,7 @@ static void put_uuid_le(const bt_uuid_t *uuid, void *dst)
 		put_le16(uuid->value.u16, dst);
 	else
 		/* Convert from 128-bit BE to LE */
-		bswap_128(&uuid->value.u128, dst);
+		py_bswap_128(&uuid->value.u128, dst);
 }
 
 static void get_uuid128(uint8_t type, const void *val, bt_uuid_t *uuid)
@@ -191,7 +191,7 @@ static void get_uuid128(uint8_t type, const void *val, bt_uuid_t *uuid)
 		uint128_t u128;
 
 		/* Convert from 128-bit LE to BE */
-		bswap_128(val, &u128);
+		py_bswap_128(val, &u128);
 		bt_uuid128_create(uuid, u128);
 	}
 }

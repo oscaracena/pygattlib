@@ -93,7 +93,7 @@ void util_hexdump(const char dir, const unsigned char *buf, size_t len,
 
 unsigned char util_get_dt(const char *parent, const char *name);
 
-static inline void bswap_128(const void *src, void *dst)
+static inline void py_bswap_128(const void *src, void *dst)
 {
 	const uint8_t *s = src;
 	uint8_t *d = dst;
