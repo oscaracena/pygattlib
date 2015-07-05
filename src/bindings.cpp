@@ -119,7 +119,10 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("write_by_handle", &GATTRequester::write_by_handle)
         .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
         .def("on_notification", &GATTRequesterCb::default_on_notification)
-        .def("on_indication", &GATTRequesterCb::default_on_indication);
+        .def("on_indication", &GATTRequesterCb::default_on_indication)
+        .def("discover_primary", &GATTRequester::discover_primary, "returns a list with of primary services, with their handles and UUIDs.")
+        
+        ;
 
     register_ptr_to_python<GATTResponse*>();
 

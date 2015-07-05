@@ -407,3 +407,48 @@ GATTRequester::check_channel() {
         }
     }
 }
+
+static void
+discover_primary_cb(guint8 status, GSList *services, void *userp) {
+	GATTResponse* response = (GATTResponse*)userp;
+	GSList *l;
+	
+	if (status) {
+		std::string msg = std::string("Discover all primary services failed: %s\n");
+		msg += att_ecode2str(status);
+		throw std::runtime_error(msg);
+	}
+	
+	if (services == NULL) {
+		throw std::runtime_error(std::string("No primary service found\n"));
+	}
+	
+	for (l = services; l; l = l->next) {
+		struct gatt_primary *prim = (gatt_primary*)l->data;
+		std::stringstream value;
+		value << "[Attr_handle:"<< prim->range.start <<"],[UUID:"<<prim->uuid<<"]";
+		response->on_response(value.str());
+
+
+	}
+	
+	response->notify(status);
+}
+
+
+void
+GATTRequester::discover_primary_all(GATTResponse* response){
+	gatt_discover_primary(_attrib, NULL, discover_primary_cb, (gpointer)response);
+}
+
+boost::python::list GATTRequester::discover_primary() {
+	GATTResponse response;
+	discover_primary_all(&response);
+	
+	if (not response.wait(5*MAX_WAIT_FOR_PACKET))
+        // FIXME: now, response is deleted, but is still registered on
+        // GLIB as callback!!
+		throw std::runtime_error("Device is not responding!");
+	return response.received();
+
+}

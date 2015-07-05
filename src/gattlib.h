@@ -72,6 +72,8 @@ public:
 	friend gboolean disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp);
 	friend void events_handler(const uint8_t* data, uint16_t size, gpointer userp);
 
+	boost::python::list discover_primary();
+	void discover_primary_all(GATTResponse* response);
 private:
 	void check_channel();
 
