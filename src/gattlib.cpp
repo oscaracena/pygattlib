@@ -4,6 +4,7 @@
 // This software is under the terms of GPLv3 or later.
 
 #include <boost/thread/thread.hpp>
+#include <boost/python/dict.hpp>
 #include <sys/ioctl.h>
 #include <iostream>
 
@@ -59,6 +60,11 @@ GATTResponse::GATTResponse() :
 
 void
 GATTResponse::on_response(const std::string data) {
+    _data.append(data);
+}
+
+void
+GATTResponse::on_response(boost::python::object data) {
     _data.append(data);
 }
 
@@ -425,11 +431,11 @@ discover_primary_cb(guint8 status, GSList *services, void *userp) {
 	
 	for (l = services; l; l = l->next) {
 		struct gatt_primary *prim = (gatt_primary*)l->data;
-		std::stringstream value;
-		value << "[Attr_handle:"<< prim->range.start <<"],[UUID:"<<prim->uuid<<"]";
-		response->on_response(value.str());
-
-
+		boost::python::dict sdescr;
+		sdescr["start"] = prim->range.start;
+		sdescr["end"] = prim->range.end;
+		sdescr["uuid"] = prim->uuid;
+		response->on_response(sdescr);
 	}
 	
 	response->notify(status);
@@ -437,13 +443,13 @@ discover_primary_cb(guint8 status, GSList *services, void *userp) {
 
 
 void
-GATTRequester::discover_primary_all(GATTResponse* response){
+GATTRequester::discover_primary_async(GATTResponse* response){
 	gatt_discover_primary(_attrib, NULL, discover_primary_cb, (gpointer)response);
 }
 
 boost::python::list GATTRequester::discover_primary() {
 	GATTResponse response;
-	discover_primary_all(&response);
+	discover_primary_async(&response);
 	
 	if (not response.wait(5*MAX_WAIT_FOR_PACKET))
         // FIXME: now, response is deleted, but is still registered on
@@ -452,3 +458,70 @@ boost::python::list GATTRequester::discover_primary() {
 	return response.received();
 
 }
+
+/* Characteristics Discovery
+
+ */
+static void 
+discover_char_cb(guint8 status, GSList *characteristics, void *user_data){
+	GATTResponse* response = (GATTResponse*)user_data;
+	GSList *l;
+	
+	if (status) {
+		std::string msg = std::string("Discover all characteristics failed: ");
+		msg += att_ecode2str(status);
+		throw std::runtime_error(msg);
+	}
+	
+	if (characteristics == NULL) {
+		throw std::runtime_error(std::string("No characteristics found\n"));
+	}
+	
+	for (l = characteristics; l; l = l->next) {
+		struct gatt_char *chars = (gatt_char*)l->data;
+#if 1
+		boost::python::dict adescr;
+		adescr["handle"] = chars->handle;
+		adescr["properties"] = chars->properties;
+		adescr["value_handle"] = chars->value_handle;
+		adescr["uuid"] = chars->uuid;
+		response->on_response(adescr);
+#else
+		std::stringstream value;
+		value << "Attr_handle:"<<std::hex<<std::showbase<< chars->handle <<",";
+		value <<"properties:"<<std::hex<<std::showbase<<chars->properties<<",";
+		value <<"value handle:"<<std::hex<<std::showbase<<chars->value_handle<<",";
+		value <<"UUID:"<<chars->uuid;
+		response->on_response(value.str());
+#endif
+	}
+	
+	response->notify(status);
+}
+
+void GATTRequester::discover_characteristics_async(GATTResponse* response, int start, int end, std::string uuid_str) {
+
+	bt_uuid_t uuid;
+
+	if (uuid_str.size()== 0){
+		gatt_discover_char(_attrib, start, end, NULL, discover_char_cb, (gpointer)response);
+	}
+	else if (bt_string_to_uuid(&uuid, uuid_str.c_str())<0){
+		throw std::runtime_error(std::string("Invalid UUID"));
+	} else {
+		gatt_discover_char(_attrib, start, end, &uuid, discover_char_cb, (gpointer)response);
+	}
+}
+
+boost::python::list GATTRequester::discover_characteristics(int start, int end, std::string uuid_str) {
+	GATTResponse response;
+	discover_characteristics_async(&response, start, end, uuid_str);
+	
+	if (not response.wait(5*MAX_WAIT_FOR_PACKET))
+        // FIXME: now, response is deleted, but is still registered on
+        // GLIB as callback!!
+		throw std::runtime_error("Device is not responding!");
+	return response.received();
+
+}
+
