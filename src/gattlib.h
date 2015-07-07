@@ -79,6 +79,7 @@ public:
 	void discover_characteristics_async(GATTResponse* response, int start = 0x0001, int end = 0xffff, std::string uuid = "");
 private:
 	void check_channel();
+	void check_connected();
 
 	enum State {
 		STATE_DISCONNECTED,

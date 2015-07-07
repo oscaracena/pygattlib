@@ -93,6 +93,7 @@ GATTResponse::received() {
     return _data;
 }
 
+
 GATTRequester::GATTRequester(std::string address, bool do_connect,
         std::string device) :
     _state(STATE_DISCONNECTED),
@@ -205,8 +206,8 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 
     request->_attrib = g_attrib_new(channel, mtu);
 
-    g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY, GATTRIB_ALL_HANDLES,
-                      events_handler, userp, NULL);
+    g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY,
+            GATTRIB_ALL_HANDLES, events_handler, userp, NULL);
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_IND, GATTRIB_ALL_HANDLES,
                       events_handler, userp, NULL);
 
@@ -274,7 +275,8 @@ GATTRequester::disconnect() {
 }
 
 static void
-read_by_handler_cb(guint8 status, const guint8* data, guint16 size, gpointer userp) {
+read_by_handler_cb(guint8 status, const guint8* data,
+        guint16 size, gpointer userp) {
 
     // Note: first byte is the payload size, remove it
     GATTResponse* response = (GATTResponse*)userp;
@@ -302,7 +304,8 @@ GATTRequester::read_by_handle(uint16_t handle) {
 }
 
 static void
-read_by_uuid_cb(guint8 status, const guint8* data, guint16 size, gpointer userp) {
+read_by_uuid_cb(guint8 status, const guint8* data,
+        guint16 size, gpointer userp) {
     struct att_data_list* list;
     list = dec_read_by_type_resp(data, size);
     if (list == NULL)
@@ -354,7 +357,8 @@ GATTRequester::read_by_uuid(std::string uuid) {
 }
 
 static void
-write_by_handle_cb(guint8 status, const guint8* data, guint16 size, gpointer userp) {
+write_by_handle_cb(guint8 status, const guint8* data,
+        guint16 size, gpointer userp) {
     GATTResponse* response = (GATTResponse*)userp;
     response->on_response(std::string((const char*)data, size));
     response->notify(status);
@@ -405,10 +409,11 @@ GATTRequester::check_channel() {
         getsockopt(l2cap_sock, SOL_L2CAP, L2CAP_CONNINFO, &info, &info_size);
         int handle = info.hci_handle;
 
-        int retval = hci_le_conn_update(_hci_socket, handle, 24, 40, 0, 700, 25000);
+        int retval = hci_le_conn_update(
+                _hci_socket, handle, 24, 40, 0, 700, 25000);
         if (retval < 0) {
-            std::string msg = std::string("Could not update HCI connection: ") +
-                std::string(strerror(errno));
+            std::string msg = "Could not update HCI connection: ";
+            msg += strerror(errno);
             throw std::runtime_error(msg);
         }
     }
@@ -420,21 +425,22 @@ discover_primary_cb(guint8 status, GSList *services, void *userp) {
 	GSList *l;
 	
 	if (status) {
-		std::string msg = std::string("Discover all primary services failed: %s\n");
+		std::string msg = std::string(
+		        "Discover all primary services failed: %s\n");
 		msg += att_ecode2str(status);
 		throw std::runtime_error(msg);
 	}
 	
 	if (services == NULL) {
-		throw std::runtime_error(std::string("No primary service found\n"));
+		throw std::runtime_error("No primary service found\n");
 	}
 	
 	for (l = services; l; l = l->next) {
 		struct gatt_primary *prim = (gatt_primary*)l->data;
 		boost::python::dict sdescr;
+		sdescr["uuid"] = prim->uuid;
 		sdescr["start"] = prim->range.start;
 		sdescr["end"] = prim->range.end;
-		sdescr["uuid"] = prim->uuid;
 		response->on_response(sdescr);
 	}
 	
@@ -443,8 +449,12 @@ discover_primary_cb(guint8 status, GSList *services, void *userp) {
 
 
 void
-GATTRequester::discover_primary_async(GATTResponse* response){
-	gatt_discover_primary(_attrib, NULL, discover_primary_cb, (gpointer)response);
+GATTRequester::discover_primary_async(GATTResponse* response) {
+    check_connected();
+    if( not gatt_discover_primary(
+            _attrib, NULL, discover_primary_cb, (gpointer)response)) {
+        throw std::runtime_error("Discover primary failed");
+    }
 }
 
 boost::python::list GATTRequester::discover_primary() {
@@ -474,46 +484,43 @@ discover_char_cb(guint8 status, GSList *characteristics, void *user_data){
 	}
 	
 	if (characteristics == NULL) {
-		throw std::runtime_error(std::string("No characteristics found\n"));
+		throw std::runtime_error("No characteristics found\n");
 	}
 	
 	for (l = characteristics; l; l = l->next) {
 		struct gatt_char *chars = (gatt_char*)l->data;
-#if 1
 		boost::python::dict adescr;
+		adescr["uuid"] = chars->uuid;
 		adescr["handle"] = chars->handle;
 		adescr["properties"] = chars->properties;
 		adescr["value_handle"] = chars->value_handle;
-		adescr["uuid"] = chars->uuid;
 		response->on_response(adescr);
-#else
-		std::stringstream value;
-		value << "Attr_handle:"<<std::hex<<std::showbase<< chars->handle <<",";
-		value <<"properties:"<<std::hex<<std::showbase<<chars->properties<<",";
-		value <<"value handle:"<<std::hex<<std::showbase<<chars->value_handle<<",";
-		value <<"UUID:"<<chars->uuid;
-		response->on_response(value.str());
-#endif
 	}
 	
 	response->notify(status);
 }
 
-void GATTRequester::discover_characteristics_async(GATTResponse* response, int start, int end, std::string uuid_str) {
+void GATTRequester::discover_characteristics_async(GATTResponse* response,
+        int start, int end, std::string uuid_str) {
+    check_connected();
 
 	bt_uuid_t uuid;
 
 	if (uuid_str.size()== 0){
-		gatt_discover_char(_attrib, start, end, NULL, discover_char_cb, (gpointer)response);
-	}
-	else if (bt_string_to_uuid(&uuid, uuid_str.c_str())<0){
-		throw std::runtime_error(std::string("Invalid UUID"));
+	    //TODO handle error
+		gatt_discover_char(_attrib, start, end, NULL, discover_char_cb,
+		        (gpointer)response);
+	} else if (bt_string_to_uuid(&uuid, uuid_str.c_str()) < 0){
+		throw std::runtime_error("Invalid UUID");
 	} else {
-		gatt_discover_char(_attrib, start, end, &uuid, discover_char_cb, (gpointer)response);
+        //TODO handle error
+		gatt_discover_char(_attrib, start, end, &uuid, discover_char_cb,
+		        (gpointer)response);
 	}
 }
 
-boost::python::list GATTRequester::discover_characteristics(int start, int end, std::string uuid_str) {
+boost::python::list GATTRequester::discover_characteristics(
+        int start, int end, std::string uuid_str) {
 	GATTResponse response;
 	discover_characteristics_async(&response, start, end, uuid_str);
 	
@@ -525,3 +532,7 @@ boost::python::list GATTRequester::discover_characteristics(int start, int end, 
 
 }
 
+void GATTRequester::check_connected() {
+    if (_state != STATE_CONNECTED)
+        throw std::runtime_error("Not connected");
+}

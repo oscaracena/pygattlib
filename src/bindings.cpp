@@ -98,8 +98,13 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         gattrequester_connect, GATTRequester::connect, 0, 3)
 
-BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(GATTRequester_discover_characteristics_overloads, GATTRequester::discover_characteristics, 0, 3)
-BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(GATTRequester_discover_characteristics_async_overloads, GATTRequester::discover_characteristics_async, 1, 4)
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
+        GATTRequester_discover_characteristics_overloads,
+        GATTRequester::discover_characteristics, 0, 3)
+
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
+        GATTRequester_discover_characteristics_async_overloads,
+        GATTRequester::discover_characteristics_async, 1, 4)
 
 BOOST_PYTHON_MODULE(gattlib) {
 
@@ -111,8 +116,8 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("connect", &GATTRequester::connect)
         .def("connect", &GATTRequester::connect,
                 gattrequester_connect(
-                    args("wait", "channel_type", "security_level"),
-                    "connects"))
+                        args("wait", "channel_type", "security_level"),
+                        "connects"))
         .def("is_connected", &GATTRequester::is_connected)
         .def("disconnect", &GATTRequester::disconnect)
         .def("read_by_handle", &GATTRequester::read_by_handle)
@@ -124,14 +129,15 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("on_notification", &GATTRequesterCb::default_on_notification)
         .def("on_indication", &GATTRequesterCb::default_on_indication)
         .def("discover_primary", &GATTRequester::discover_primary,
-		     "returns a list with of primary services, with their handles and UUIDs.")
+                "returns a list with of primary services,"
+                " with their handles and UUIDs.")
         .def("discover_primary_async", &GATTRequester::discover_primary_async)
-        .def("discover_characteristics", &GATTRequester::discover_characteristics,
-		     GATTRequester_discover_characteristics_overloads())
-        .def("discover_characteristics_async", &GATTRequester::discover_characteristics_async,
-		     GATTRequester_discover_characteristics_async_overloads())
-        
-        ;
+        .def("discover_characteristics",
+                &GATTRequester::discover_characteristics,
+                GATTRequester_discover_characteristics_overloads())
+        .def("discover_characteristics_async",
+                &GATTRequester::discover_characteristics_async,
+                GATTRequester_discover_characteristics_async_overloads());
 
     register_ptr_to_python<GATTResponse*>();
 
