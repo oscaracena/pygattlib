@@ -36,6 +36,7 @@ public:
 	virtual ~GATTResponse() {};
 
 	virtual void on_response(const std::string data);
+	virtual void on_response(boost::python::object data);
 	boost::python::list received();
 	bool wait(uint16_t timeout);
 	void notify(uint8_t status);
@@ -72,6 +73,10 @@ public:
 	friend gboolean disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp);
 	friend void events_handler(const uint8_t* data, uint16_t size, gpointer userp);
 
+	boost::python::list discover_primary();
+	void discover_primary_async(GATTResponse* response);
+	boost::python::list discover_characteristics(int start = 0x0001, int end = 0xffff, std::string uuid = "");
+	void discover_characteristics_async(GATTResponse* response, int start = 0x0001, int end = 0xffff, std::string uuid = "");
 private:
 	void check_channel();
 

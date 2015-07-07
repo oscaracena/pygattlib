@@ -98,6 +98,9 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         gattrequester_connect, GATTRequester::connect, 0, 3)
 
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(GATTRequester_discover_characteristics_overloads, GATTRequester::discover_characteristics, 0, 3)
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(GATTRequester_discover_characteristics_async_overloads, GATTRequester::discover_characteristics_async, 1, 4)
+
 BOOST_PYTHON_MODULE(gattlib) {
 
     register_ptr_to_python<GATTRequester*>();
@@ -119,7 +122,16 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("write_by_handle", &GATTRequester::write_by_handle)
         .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
         .def("on_notification", &GATTRequesterCb::default_on_notification)
-        .def("on_indication", &GATTRequesterCb::default_on_indication);
+        .def("on_indication", &GATTRequesterCb::default_on_indication)
+        .def("discover_primary", &GATTRequester::discover_primary,
+		     "returns a list with of primary services, with their handles and UUIDs.")
+        .def("discover_primary_async", &GATTRequester::discover_primary_async)
+        .def("discover_characteristics", &GATTRequester::discover_characteristics,
+		     GATTRequester_discover_characteristics_overloads())
+        .def("discover_characteristics_async", &GATTRequester::discover_characteristics_async,
+		     GATTRequester_discover_characteristics_async_overloads())
+        
+        ;
 
     register_ptr_to_python<GATTResponse*>();
 
