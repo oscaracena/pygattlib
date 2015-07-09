@@ -9,6 +9,8 @@
 #define MAX_WAIT_FOR_PACKET 15 // seconds
 
 #include <boost/python/list.hpp>
+#include <boost/python/tuple.hpp>
+#include <boost/python/dict.hpp>
 #include <string>
 #include <stdint.h>
 #include <glib.h>
@@ -59,7 +61,8 @@ public:
 	virtual void on_indication(const uint16_t handle, const std::string data);
 
 	void connect(bool wait=false, std::string channel_type="public",
-			std::string security_level="low");
+			std::string security_level="low", int psm=0, int mtu=0);
+	static boost::python::object connect_kwarg(boost::python::tuple args, boost::python::dict kwargs);
 	bool is_connected();
 	void disconnect();
 	void read_by_handle_async(uint16_t handle, GATTResponse* response);

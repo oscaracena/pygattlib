@@ -5,6 +5,7 @@
 
 #include <boost/thread/thread.hpp>
 #include <boost/python/dict.hpp>
+#include <boost/python/extract.hpp>
 #include <sys/ioctl.h>
 #include <iostream>
 
@@ -223,7 +224,7 @@ disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp) {
 
 void
 GATTRequester::connect(bool wait,
-		std::string channel_type, std::string security_level) {
+		std::string channel_type, std::string security_level, int psm, int mtu) {
     if (_state != STATE_DISCONNECTED)
         throw std::runtime_error("Already connecting or connected");
 
@@ -235,8 +236,8 @@ GATTRequester::connect(bool wait,
          _address.c_str(),       // 'mac address'
          channel_type.c_str(),   // 'public' '[public | random]'
          security_level.c_str(), // sec_level, '[low | medium | high]'
-         0,                      // 0, psm
-         0,                      // 0, mtu
+         psm,                      // 0, psm
+         mtu,                      // 0, mtu
          connect_cb,
          &gerr,
          (gpointer)this);
@@ -252,6 +253,63 @@ GATTRequester::connect(bool wait,
     g_io_add_watch(_channel, G_IO_HUP, disconnect_cb, (gpointer)this);
     if (wait)
         check_channel();
+}
+
+boost::python::object
+GATTRequester::connect_kwarg(boost::python::tuple args, boost::python::dict kwargs)
+{
+	// Static method wrapper around connect. First obtain self/this
+	GATTRequester& self = boost::python::extract<GATTRequester&>(args[0]);
+	
+	// Argument default values.
+	bool wait=false;
+	std::string channel_type="public";
+	std::string security_level="low";
+	int psm=0;
+	int mtu=0;
+	int kwargsused = 0;
+	
+	// Extract each argument either positionally or from the keyword arguments
+	if (boost::python::len(args) > 1) {
+		wait = boost::python::extract<bool>(args[1]);
+	} else if (kwargs.has_key("wait")) {
+		wait = boost::python::extract<bool>(kwargs.get("wait"));
+		kwargsused++;
+	}
+	if (boost::python::len(args) > 2) {
+		channel_type = boost::python::extract<std::string>(args[2]);
+	} else if (kwargs.has_key("channel_type")) {
+		channel_type = boost::python::extract<std::string>(kwargs.get("channel_type"));
+		kwargsused++;
+	}
+	if (boost::python::len(args) > 3) {
+		security_level = boost::python::extract<std::string>(args[3]);
+	} else if (kwargs.has_key("security_level")) {
+		security_level = boost::python::extract<std::string>(kwargs.get("security_level"));
+		kwargsused++;
+	}
+	if (boost::python::len(args) > 4) {
+		psm = boost::python::extract<int>(args[4]);
+	} else if (kwargs.has_key("psm")) {
+		psm = boost::python::extract<int>(kwargs.get("psm"));
+		kwargsused++;
+	}
+	if (boost::python::len(args) > 5) {
+		mtu = boost::python::extract<int>(args[5]);
+	} else if (kwargs.has_key("mtu")) {
+		mtu = boost::python::extract<int>(kwargs.get("mtu"));
+		kwargsused++;
+	}
+	
+	// Check that we have used all keyword arguments
+	if (kwargsused != boost::python::len(kwargs))
+		throw std::runtime_error("Error in keyword arguments");
+	
+	// Call the real method
+	std::cout << "wait=" << wait << ", channel_type=" << channel_type << ", security_level=" << security_level << ", psm=" << psm << ", mtu=" << mtu << std::endl;
+	self.connect(wait, channel_type, security_level, psm, mtu);
+	
+	return boost::python::object(); // boost-ism for "None"
 }
 
 bool

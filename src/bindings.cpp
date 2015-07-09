@@ -6,6 +6,7 @@
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <boost/python/overloads.hpp>
+#include <boost/python/raw_function.hpp>
 
 #include "gattlib.h"
 #include "gattservices.h"
@@ -118,6 +119,7 @@ BOOST_PYTHON_MODULE(gattlib) {
                 gattrequester_connect(
                         args("wait", "channel_type", "security_level"),
                         "connects"))
+        .def("connect_kwarg", boost::python::raw_function(GATTRequester::connect_kwarg,1))
         .def("is_connected", &GATTRequester::is_connected)
         .def("disconnect", &GATTRequester::disconnect)
         .def("read_by_handle", &GATTRequester::read_by_handle)
