@@ -306,7 +306,6 @@ GATTRequester::connect_kwarg(boost::python::tuple args, boost::python::dict kwar
 		throw std::runtime_error("Error in keyword arguments");
 	
 	// Call the real method
-	std::cout << "wait=" << wait << ", channel_type=" << channel_type << ", security_level=" << security_level << ", psm=" << psm << ", mtu=" << mtu << std::endl;
 	self.connect(wait, channel_type, security_level, psm, mtu);
 	
 	return boost::python::object(); // boost-ism for "None"
