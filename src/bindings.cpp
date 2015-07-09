@@ -97,9 +97,6 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         start_advertising, BeaconService::start_advertising, 0, 5)
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
-        gattrequester_connect, GATTRequester::connect, 0, 3)
-
-BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         GATTRequester_discover_characteristics_overloads,
         GATTRequester::discover_characteristics, 0, 3)
 
@@ -114,12 +111,7 @@ BOOST_PYTHON_MODULE(gattlib) {
     class_<GATTRequester, boost::noncopyable, GATTRequesterCb> ("GATTRequester",
             init<std::string, optional<bool, std::string> >())
 
-        .def("connect", &GATTRequester::connect)
-        .def("connect", &GATTRequester::connect,
-                gattrequester_connect(
-                        args("wait", "channel_type", "security_level"),
-                        "connects"))
-        .def("connect_kwarg", boost::python::raw_function(GATTRequester::connect_kwarg,1))
+        .def("connect", boost::python::raw_function(GATTRequester::connect_kwarg,1))
         .def("is_connected", &GATTRequester::is_connected)
         .def("disconnect", &GATTRequester::disconnect)
         .def("read_by_handle", &GATTRequester::read_by_handle)
