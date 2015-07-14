@@ -5,7 +5,7 @@
 
 TARGETS  = gattlib.so
 OBJECTS  = att.o crypto.o uuid.o gatt.o gattrib.o btio.o log.o utils.o \
-	   gattservices.o gattlib.o bindings.o
+	   gattservices.o gattlib.o bindings.o beacon.o
 
 ifeq ($(PYTHON_VER),3)
   PYTHON_CONFIG = python3-config
