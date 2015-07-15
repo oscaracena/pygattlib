@@ -182,10 +182,9 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     GATTRequester* request = (GATTRequester*)userp;
 
     if (err) {
-        request->_state = GATTRequester::STATE_DISCONNECTED;
-        std::string msg(err->message);
+        request->_state = GATTRequester::STATE_ERROR_CONNECTING;
         g_error_free(err);
-        throw std::runtime_error(msg);
+        return;
     }
 
     GError *gerr = NULL;

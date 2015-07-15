@@ -84,11 +84,12 @@ private:
 	void check_channel();
 	void check_connected();
 
-	enum State {
-		STATE_DISCONNECTED,
-		STATE_CONNECTING,
-		STATE_CONNECTED,
-	} _state;
+    enum State {
+        STATE_DISCONNECTED,
+        STATE_CONNECTING,
+        STATE_CONNECTED,
+        STATE_ERROR_CONNECTING
+    } _state;
 
 	std::string _device;
 	std::string _address;
