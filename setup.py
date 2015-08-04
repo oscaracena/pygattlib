@@ -5,7 +5,7 @@ import os
 import sys
 import subprocess
 import platform
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 
 extension_modules = list()
 
@@ -54,7 +54,7 @@ else:
     
 setup(
     name = 'gattlib',
-    version = "0.20150131",
+    version = "1.1",
     description = "Library to access Bluetooth LE devices",
     author = "Oscar Acena",
     author_email = "oscar.acena@gmail.com",
