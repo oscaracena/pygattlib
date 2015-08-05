@@ -1,10 +1,8 @@
 #!/usr/bin/python
 # -*- mode: python; coding: utf-8 -*-
 
-import os
 import sys
 import subprocess
-import platform
 from setuptools import setup, Extension
 
 extension_modules = list()
@@ -40,24 +38,22 @@ if sys.platform.startswith('linux'):
              'src/bluez/src/log.c',
              'src/bluez/btio/btio.c'],
 
-            libraries = glib_libs + boost_libs + ["boost_thread", "bluetooth"],
+            libraries=glib_libs + boost_libs + ["boost_thread", "bluetooth"],
+            include_dirs=glib_headers + ['src/bluez'],
+            define_macros=[('VERSION', '"5.25"')]
 
-            include_dirs = glib_headers + [ 'src/bluez'],
-
-            define_macros = [('VERSION', '"5.25"')]
-            
         )
     ]
 else:
     raise OSError("Not supported OS")
 
-    
+
 setup(
-    name = 'gattlib',
-    version = "1.1",
-    description = "Library to access Bluetooth LE devices",
-    author = "Oscar Acena",
-    author_email = "oscar.acena@gmail.com",
-    url = "https://bitbucket.org/OscarAcena/pygattlib",
-    ext_modules = extension_modules,
+    name='gattlib',
+    version="0.20150805",
+    description="Library to access Bluetooth LE devices",
+    author="Oscar Acena",
+    author_email="oscar.acena@gmail.com",
+    url="https://bitbucket.org/OscarAcena/pygattlib",
+    ext_modules=extension_modules,
 )
