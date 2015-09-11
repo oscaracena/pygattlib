@@ -2,7 +2,7 @@
 # -*- mode: python; coding: utf-8 -*-
 
 # Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
-# This software is under the terms of GPLv3 or later.
+# This software is under the terms of Apache License v2 or later.
 
 from gattlib import BeaconService
 import time

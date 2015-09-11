@@ -2,7 +2,7 @@
 # -*- mode: python; coding: utf-8 -*-
 
 # Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
-# This software is under the terms of GPLv3 or later.
+# This software is under the terms of Apache License v2 or later.
 
 from __future__ import print_function
 
@@ -19,9 +19,9 @@ if __name__ == '__main__':
     print("Connecting...")
     sys.stdout.flush()
     requester.connect(True)
-    
+
     primary = requester.discover_primary()
     for prim in primary:
         print(prim)
-        
+
     print("Done.")
