@@ -30,8 +30,8 @@ public:
 
     // to be called from c++ side
     void on_response(const std::string data) {
+        PyGILGuard guard;
         try {
-            PyGILGuard guard;
             call_method<void>(self, "on_response", data);
         } catch(error_already_set const&) {
             PyErr_Print();
@@ -57,8 +57,8 @@ public:
 
     // to be called from c++ side
     void on_notification(const uint16_t handle, const std::string data) {
+        PyGILGuard guard;
         try {
-            PyGILGuard guard;
             call_method<void>(self, "on_notification", handle, data);
         } catch(error_already_set const&) {
             PyErr_Print();
@@ -74,8 +74,8 @@ public:
 
     // to be called from c++ side
     void on_indication(const uint16_t handle, const std::string data) {
+        PyGILGuard guard;
         try {
-            PyGILGuard guard;
             call_method<void>(self, "on_indication", handle, data);
         } catch(error_already_set const&) {
             PyErr_Print();
