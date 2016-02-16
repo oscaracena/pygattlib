@@ -7,6 +7,7 @@
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <boost/python/overloads.hpp>
 #include <boost/python/raw_function.hpp>
+#include <boost/python/to_python_converter.hpp>
 
 #include "gattlib.h"
 #include "gattservices.h"
@@ -21,6 +22,15 @@ public:
 
 private:
     PyGILState_STATE _state;
+};
+
+/** to-python convert for std::vector<char> */
+struct bytes_vector_to_python_bytes
+{
+    static PyObject* convert(std::vector<char> const& s)
+    {
+        return PyBytes_FromStringAndSize(s.data(), s.size());
+    }
 };
 
 class GATTResponseCb : public GATTResponse {
@@ -59,7 +69,8 @@ public:
     void on_notification(const uint16_t handle, const std::string data) {
         PyGILGuard guard;
         try {
-            call_method<void>(self, "on_notification", handle, data);
+            const std::vector<char> vecdata(data.begin(), data.end());
+            call_method<void>(self, "on_notification", handle, vecdata);
         } catch(error_already_set const&) {
             PyErr_Print();
         }
@@ -76,7 +87,8 @@ public:
     void on_indication(const uint16_t handle, const std::string data) {
         PyGILGuard guard;
         try {
-            call_method<void>(self, "on_indication", handle, data);
+            const std::vector<char> vecdata(data.begin(), data.end());
+            call_method<void>(self, "on_indication", handle, vecdata);
         } catch(error_already_set const&) {
             PyErr_Print();
         }
@@ -105,6 +117,8 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         GATTRequester::discover_characteristics_async, 1, 4)
 
 BOOST_PYTHON_MODULE(gattlib) {
+
+    to_python_converter<std::vector<char>, bytes_vector_to_python_bytes>();
 
     register_ptr_to_python<GATTRequester*>();
 
