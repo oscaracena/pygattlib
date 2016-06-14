@@ -71,7 +71,7 @@ DiscoveryService::get_advertisements(int timeout, boost::python::dict & ret) {
 
 	int len;
 	unsigned char buffer[HCI_MAX_EVENT_SIZE];
-	struct timeval wait;
+	struct timeval wait = (struct timeval){0};
 	fd_set read_set;
 	wait.tv_sec = timeout;
 	int ts = time(NULL);
@@ -85,7 +85,7 @@ DiscoveryService::get_advertisements(int timeout, boost::python::dict & ret) {
 			break;
 
 		len = read(_device_desc, buffer, sizeof(buffer));
-        process_input(buffer, len, ret);
+		process_input(buffer, len, ret);
 
 		int elapsed = time(NULL) - ts;
 		if (elapsed >= timeout)
