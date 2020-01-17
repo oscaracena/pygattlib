@@ -1,3 +1,15 @@
+gattlib (0.20200117.2-1) unstable; urgency=low
+
+  * New release, update packaging settings
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Fri, 17 Jan 2020 09:33:39 +0100
+
+gattlib (0.20200117-1) unstable; urgency=low
+
+  * New release; fix boost linking problems
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Fri, 17 Jan 2020 08:10:33 +0100
+
 gattlib (0.20150131-1) unstable; urgency=low
 
   * New release; fix threading issues, added notifications on python

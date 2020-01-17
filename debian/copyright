@@ -4,5 +4,5 @@ Source: https://bitbucket.org/OscarAcena/pygattlib
 
 Files: *
 Copyright: 2014 Oscar Aceña Herrera <oscaracena@gmail.com>
-License: ALv2
- 
+License: Apache-2.0
+ /usr/share/common-licenses/Apache-2.0

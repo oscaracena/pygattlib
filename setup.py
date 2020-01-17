@@ -19,7 +19,7 @@ if sys.platform.startswith('linux'):
     glib_libs = [x.strip() for x in glib_libs if x]
 
     if sys.version_info.major == 3:
-        boost_libs = ["boost_python-py3"+str(sys.version_info.minor)]
+        boost_libs = ["boost_python3"+str(sys.version_info.minor)]
     else:
         boost_libs = ["boost_python"]
     extension_modules = [
@@ -47,11 +47,15 @@ if sys.platform.startswith('linux'):
 else:
     raise OSError("Not supported OS")
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 setup(
     name='gattlib',
-    version="0.20150805",
+    version="0.20200117.post3",
     description="Library to access Bluetooth LE devices",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Oscar Acena",
     author_email="oscar.acena@gmail.com",
     url="https://bitbucket.org/OscarAcena/pygattlib",
