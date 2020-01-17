@@ -1,6 +1,6 @@
 // -*- mode: c++; coding: utf-8 -*-
 
-// Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
+// Copyright (C) 2014,2020 Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of Apache License v2 or later.
 
 #include <boost/thread/thread.hpp>
@@ -222,8 +222,10 @@ disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp) {
 }
 
 void
-GATTRequester::connect(bool wait,
-		std::string channel_type, std::string security_level, int psm, int mtu) {
+GATTRequester::connect(
+        bool wait, std::string channel_type,
+        std::string security_level, int psm, int mtu) {
+
     if (_state != STATE_DISCONNECTED)
         throw std::runtime_error("Already connecting or connected");
 
@@ -231,10 +233,10 @@ GATTRequester::connect(bool wait,
 
     GError *gerr = NULL;
     _channel = gatt_connect
-        (_device.c_str(),        // 'hciX'
-         _address.c_str(),       // 'mac address'
-         channel_type.c_str(),   // 'public' '[public | random]'
-         security_level.c_str(), // sec_level, '[low | medium | high]'
+        (_device.c_str(),          // 'hciX'
+         _address.c_str(),         // 'mac address'
+         channel_type.c_str(),     // 'public' '[public | random]'
+         security_level.c_str(),   // sec_level, '[low | medium | high]'
          psm,                      // 0, psm
          mtu,                      // 0, mtu
          connect_cb,
