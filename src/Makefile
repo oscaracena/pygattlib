@@ -3,13 +3,16 @@
 # Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 # This software is under the terms of Apache License v2 or later.
 
+PLATFORM := $(shell uname -m)
 TARGETS  = gattlib.so
 OBJECTS  = att.o crypto.o uuid.o gatt.o gattrib.o btio.o log.o utils.o \
 	   gattservices.o gattlib.o bindings.o beacon.o
 
+export PKG_CONFIG_PATH := $(PKG_CONFIG_PATH):/usr/lib/$(PLATFORM)-linux-gnu/pkgconfig/
+
 ifeq ($(PYTHON_VER),3)
   PYTHON_CONFIG = python3-config
-  BOOST_PYTHON  = boost_python-py34
+  BOOST_PYTHON  = boost_python-py$(shell python3 -c "import sys; print(sys.version_info.major,sys.version_info.minor,sep='')")
 else
   PYTHON_CONFIG = python-config
   BOOST_PYTHON  = boost_python
