@@ -36,8 +36,8 @@ vpath %.c bluez/btio
 all: $(TARGETS)
 
 gattlib.so: $(OBJECTS)
-    $(CXX) $(CXXFLAGS) -shared -o $@ $^ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -shared -o $@ $^ $(LDFLAGS)
 
 .PHONY: clean
 clean:
-    rm -f *.o *.so* *~
+	rm -f *.o *.so* *~

@@ -113,7 +113,7 @@ devices = service.discover(2)
 
 for address, name in devices.items():
     print("name: {}, address: {}".format(name, address))
-```    
+```
 
 
 Reading data
@@ -176,22 +176,33 @@ req.read_by_handle_async(0x15, response)
 while True:
     # here, do other interesting things
     sleep(1)
-```    
+```
 
 
 Writing data
 ------------
 
-The process to write data is the same as for read. Create a
-GATTRequest object, and use the method `write_by_handle` to send the
-data. As a note, data must be a string, but you can convert it from
-`bytearray` or something similar. See the following example:
+The process to write data is the same as for read. Create a GATTRequest object,
+and use the method `write_by_handle` to send the data. This method will issue a
+`write request`. As a note, data must be a bytes object. See the following
+example:
 
 ```python
 from gattlib import GATTRequester
 
 req = GATTRequester("00:11:22:33:44:55")
-req.write_by_handle(0x10, str(bytearray([14, 4, 56])))
+req.write_by_handle(0x10, bytes([14, 4, 56]))
+```
+
+You can also use the `write_cmd()` to send a write command instead. It has the
+same parameters as `write_by_handle`: the handler id and a bytes object. As an
+example:
+
+```python
+from gattlib import GATTRequester
+
+req = GATTRequester("00:11:22:33:44:55")
+req.write_cmd(0x001e, bytes([16, 1, 4]))
 ```
 
 
@@ -210,7 +221,7 @@ from gattlib import GATTRequester
 class Requester(GATTRequester):
     def on_notification(self, handle, data):
         print("- notification on handle: {}\n".format(handle))
-```	
+```
 
 You can receive indications as well. Just overwrite the method
 `on_indication` of `GATTRequester`.

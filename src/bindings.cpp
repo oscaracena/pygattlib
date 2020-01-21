@@ -1,6 +1,6 @@
 // -*- mode: c++; coding: utf-8 -*-
 
-// Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
+// Copyright (C) 2014,2020 Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of Apache License v2 or later.
 
 #include <boost/python.hpp>
