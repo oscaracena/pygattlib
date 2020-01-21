@@ -6,6 +6,7 @@
 #include <boost/thread/thread.hpp>
 #include <boost/python/dict.hpp>
 #include <boost/python/extract.hpp>
+#include <boost/python/str.hpp>
 #include <sys/ioctl.h>
 #include <iostream>
 
@@ -61,7 +62,9 @@ GATTResponse::GATTResponse() :
 
 void
 GATTResponse::on_response(const std::string data) {
-    _data.append(data);
+    // this data is usually a binary blob, avoid string encoding/decoding
+    PyObject* bytes = PyBytes_FromStringAndSize(data.c_str(), data.length());
+    _data.append(boost::python::object(boost::python::handle<>(bytes)));
 }
 
 void
@@ -453,6 +456,13 @@ GATTRequester::write_by_handle(uint16_t handle, std::string data) {
         throw std::runtime_error("Device is not responding!");
 
     return response.received();
+}
+
+void
+GATTRequester::write_cmd(uint16_t handle, std::string data) {
+    check_channel();
+    gatt_write_cmd(_attrib, handle, (const uint8_t*)data.data(), data.size(),
+                   NULL, NULL);
 }
 
 void

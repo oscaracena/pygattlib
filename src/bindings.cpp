@@ -134,6 +134,7 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("read_by_uuid_async", &GATTRequester::read_by_uuid_async)
         .def("write_by_handle", &GATTRequester::write_by_handle)
         .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
+        .def("write_cmd", &GATTRequester::write_cmd)
         .def("on_notification", &GATTRequesterCb::default_on_notification)
         .def("on_indication", &GATTRequesterCb::default_on_indication)
         .def("discover_primary", &GATTRequester::discover_primary,
