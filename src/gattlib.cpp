@@ -17,6 +17,8 @@
 
 #include "gattlib.h"
 
+
+// This class uses RAII to ensure that the GIL is released while the object exists
 class PyThreadsGuard {
 public:
     PyThreadsGuard() : _save(NULL) {
@@ -412,7 +414,6 @@ GATTRequester::read_by_uuid_async(std::string uuid, GATTResponse* response) {
 
 boost::python::list
 GATTRequester::read_by_uuid(std::string uuid) {
-    PyThreadsGuard guard;
     GATTResponse response;
 
     read_by_uuid_async(uuid, &response);

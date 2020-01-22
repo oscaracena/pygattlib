@@ -1,3 +1,9 @@
+gattlib (0.20200122-1) unstable; urgency=low
+
+  * New release, remove GIL release on read_by_uuid
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Wed, 22 Jan 2020 12:09:51 +0100
+
 gattlib (0.20200121-1) unstable; urgency=low
 
   * New release, add support for write_cmd; use bytes instead str
