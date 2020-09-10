@@ -1,18 +1,18 @@
 Index
 =======
 
-* [Description](#markdown-header-description)
-* [Installation](#markdown-header-installation)
-    * [Python pip](#markdown-header-python-pip)
-    * [Debian way](#markdown-header-debian-way)
-    * [Compiling from source](#markdown-header-compiling-from-source)
-* [Usage](#markdown-header-usage)
-    * [Discovering devices](#markdown-header-discovering-devices)
-    * [Reading data](#markdown-header-reading-data)
-    * [Reading data asynchronously](#markdown-header-reading-data-asynchronously)
-    * [Writing data](#markdown-header-writing-data)
-    * [Receiving notifications](#markdown-header-receiving-notifications)
-* [Disclaimer](#markdown-header-disclaimer)
+* [Description](#description)
+* [Installation](#installation)
+    * [Python pip](#python-pip)
+    * [Debian way](#debian-way)
+    * [Compiling from source](#compiling-from-source)
+* [Usage](#usage)
+    * [Discovering devices](#discovering-devices)
+    * [Reading data](#reading-data)
+    * [Reading data asynchronously](#reading-data-asynchronously)
+    * [Writing data](#writing-data)
+    * [Receiving notifications](#receiving-notifications)
+* [Disclaimer](#disclaimer)
 
 
 Description
