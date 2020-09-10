@@ -1,0 +1,6 @@
+*.pyc
+*.o
+*~
+*.pybuild
+build
+.vscode

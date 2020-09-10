@@ -32,20 +32,21 @@ using the Debian package, or manually compiling it.
 Python pip
 ----------
 
-Install as ever (you may need to install the packages listed on `DEPENDS` files):
+First, you need to install the depends. In Debian/Ubuntu this will be something like:
 
-    sudo pip3 install gattlib
+    sudo apt install pkg-config libboost-python-dev libboost-thread-dev libbluetooth-dev libglib2.0-dev python-dev
 
-You can install for Python too, just use `pip`
+Now, install as ever:
+
+    pip install gattlib
 
 Debian way
 ----------
 
 Again, you have two options. You can download the .deb file from
-[https://bitbucket.org/OscarAcena/pygattlib/downloads/](https://bitbucket.org/OscarAcena/pygattlib/downloads/)
-(either for Python2 or Python3), and install it using the following command:
+[https://github.com/oscaracena/pygattlib/releases](https://github.com/oscaracena/pygattlib/releases), and install it using the following command:
 
-    sudo apt install ./python?-gattlib*.deb
+    sudo apt install ./python3-gattlib*.deb
 
 Also, you can add the [pike](http://pike.esi.uclm.es/) repository and install as always:
 

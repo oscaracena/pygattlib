@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
 
 import sys
@@ -18,10 +18,11 @@ if sys.platform.startswith('linux'):
     glib_libs = glib_libs.strip().split("-l")
     glib_libs = [x.strip() for x in glib_libs if x]
 
-    if sys.version_info.major == 3:
-        boost_libs = ["boost_python3"+str(sys.version_info.minor)]
-    else:
-        boost_libs = ["boost_python"]
+    # Dropping Py2 support
+    # if sys.version_info.major == 3:
+    boost_libs = ["boost_python3"+str(sys.version_info.minor)]
+    # else:
+    #     boost_libs = ["boost_python"]
     extension_modules = [
         Extension(
             'gattlib',
@@ -58,6 +59,6 @@ setup(
     long_description_content_type="text/markdown",
     author="Oscar Acena",
     author_email="oscar.acena@gmail.com",
-    url="https://bitbucket.org/OscarAcena/pygattlib",
+    url="https://github.com/oscaracena/pygattlib",
     ext_modules=extension_modules,
 )
