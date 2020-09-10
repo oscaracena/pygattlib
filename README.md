@@ -43,18 +43,10 @@ Now, install as ever:
 Debian way
 ----------
 
-Again, you have two options. You can download the .deb file from
-[https://github.com/oscaracena/pygattlib/releases](https://github.com/oscaracena/pygattlib/releases), and install it using the following command:
+There is a single Debian package available from
+[https://github.com/oscaracena/pygattlib/releases](https://github.com/oscaracena/pygattlib/releases). Just download it and install using the following command:
 
     sudo apt install ./python3-gattlib*.deb
-
-Also, you can add the [pike](http://pike.esi.uclm.es/) repository and install as always:
-
-    wget -qO- http://pike.esi.uclm.es/add-pike-repo.sh | sudo sh
-    sudo apt update
-    sudo apt install python3-gattlib
-
-Of course, there is also a Python2 package (called `python-gattlib`).
 
 Compiling from source
 ---------------------
@@ -62,11 +54,6 @@ Compiling from source
 You should install the needed packages, which are described on `DEPENDS`
 file. Take special care about versions: libbluetooth-dev should be
 4.101 or greater. Then, just type:
-
-    make PYTHON_VER=3
-    [...]
-
-If you want to compile for Python 2, remove the flag on make:
 
     make
 
