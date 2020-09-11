@@ -1,3 +1,9 @@
+gattlib (0.20200911-1) unstable; urgency=low
+
+  * New release, renive GIL release on write_by_handle
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Fri, 11 Sep 2020 13:18:10 +0200
+
 gattlib (0.20200122-1) unstable; urgency=low
 
   * New release, remove GIL release on read_by_uuid

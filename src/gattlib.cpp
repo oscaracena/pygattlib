@@ -82,8 +82,10 @@ GATTResponse::notify(uint8_t status) {
 
 bool
 GATTResponse::wait(uint16_t timeout) {
-    if (not _event.wait(timeout))
+    if (not _event.wait(timeout)) {
+        // timeout expired!
         return false;
+    }
 
     if (_status != 0) {
         std::string msg = "Characteristic value/descriptor operation failed: ";
@@ -429,8 +431,9 @@ GATTRequester::read_by_uuid(std::string uuid) {
 static void
 write_by_handle_cb(guint8 status, const guint8* data,
         guint16 size, gpointer userp) {
+
     GATTResponse* response = (GATTResponse*)userp;
-    if (!status && data) {
+    if (status == 0 && data) {
         response->on_response(std::string((const char*)data, size));
     }
     response->notify(status);
@@ -439,6 +442,7 @@ write_by_handle_cb(guint8 status, const guint8* data,
 void
 GATTRequester::write_by_handle_async(uint16_t handle, std::string data,
                                      GATTResponse* response) {
+
     check_channel();
     gatt_write_char(_attrib, handle, (const uint8_t*)data.data(), data.size(),
                     write_by_handle_cb, (gpointer)response);
@@ -446,7 +450,8 @@ GATTRequester::write_by_handle_async(uint16_t handle, std::string data,
 
 boost::python::list
 GATTRequester::write_by_handle(uint16_t handle, std::string data) {
-    PyThreadsGuard guard;
+    // FIXME: this causes a segfault when some exception is thrown, why?
+    // PyThreadsGuard guard;
     GATTResponse response;
 
     write_by_handle_async(handle, data, &response);

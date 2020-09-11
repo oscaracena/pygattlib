@@ -4,3 +4,5 @@
 *.pybuild
 build
 .vscode
+*.so
+*.egg-info
