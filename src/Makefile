@@ -13,7 +13,10 @@ export PKG_CONFIG_PATH := $(PKG_CONFIG_PATH):/usr/lib/$(PLATFORM)-linux-gnu/pkgc
 # Dropping Py2 support
 # ifeq ($(PYTHON_VER),3)
 PYTHON_CONFIG = python3-config
-BOOST_PYTHON  = boost_python$(shell python3 -c "import sys; print(sys.version_info.major,sys.version_info.minor,sep='')")
+BOOST_PYTHON = $(shell \
+    ldconfig -p | 'grep' -E 'libboost_python3.*\.so ' | \
+    awk '{i=index($$1,".");print substr($$1,4,i-4)}' \
+)
 # else
 #   PYTHON_CONFIG = python-config
 #   BOOST_PYTHON  = boost_python
