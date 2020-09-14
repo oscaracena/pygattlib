@@ -1,3 +1,9 @@
+gattlib (0.20200914-1) unstable; urgency=low
+
+  * New release, update boost_python lib name
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Mon, 14 Sep 2020 10:53:25 +0200
+
 gattlib (0.20200911-1) unstable; urgency=low
 
   * New release, renive GIL release on write_by_handle

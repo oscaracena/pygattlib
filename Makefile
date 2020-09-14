@@ -3,6 +3,10 @@
 all:
 	$(MAKE) -C src $@
 
+pypi-test-upload:
+	python3 setup.py sdist
+	twine upload --repository testpypi dist/*
+
 pypi-upload:
 	python3 setup.py sdist
 	twine upload dist/*
@@ -13,4 +17,4 @@ pypi-upload:
 .PHONY: clean
 clean:
 	$(MAKE) -C src $@
-	$(RM) -fr dist MANIFEST gattlib.egg-info
+	$(RM) -fr build dist MANIFEST gattlib.egg-info
