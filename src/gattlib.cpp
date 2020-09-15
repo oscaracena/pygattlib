@@ -49,8 +49,13 @@ IOService::start() {
 }
 
 void
+IOService::stop() {
+    g_main_loop_quit(event_loop);
+}
+
+void
 IOService::operator()() {
-    GMainLoop *event_loop = g_main_loop_new(NULL, FALSE);
+    event_loop = g_main_loop_new(NULL, FALSE);
 
     g_main_loop_run(event_loop);
     g_main_loop_unref(event_loop);
@@ -189,6 +194,8 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     GATTRequester* request = (GATTRequester*)userp;
 
     if (err) {
+        std::cout << "PyGattLib ERROR: " << std::string(err->message) << std::endl;
+
         request->_state = GATTRequester::STATE_ERROR_CONNECTING;
         g_error_free(err);
         return;
@@ -207,8 +214,7 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
         g_error_free(gerr);
         mtu = ATT_DEFAULT_LE_MTU;
     }
-
-    if (cid == ATT_CID)
+    else if (cid == ATT_CID)
         mtu = ATT_DEFAULT_LE_MTU;
 
     request->_attrib = g_attrib_new(channel, mtu);
@@ -216,15 +222,17 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY,
             GATTRIB_ALL_HANDLES, events_handler, userp, NULL);
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_IND, GATTRIB_ALL_HANDLES,
-                      events_handler, userp, NULL);
+            events_handler, userp, NULL);
 
     request->_state = GATTRequester::STATE_CONNECTED;
+    request->_ready.set();
 }
 
 gboolean
 disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp) {
     GATTRequester* request = (GATTRequester*)userp;
-    request->disconnect();
+    if (channel == request->get_channel())
+        request->disconnect();
     return false;
 }
 
@@ -473,34 +481,19 @@ GATTRequester::write_cmd(uint16_t handle, std::string data) {
 
 void
 GATTRequester::check_channel() {
-    time_t ts = time(NULL);
-    bool should_update = false;
 
-    while (_channel == NULL || _attrib == NULL) {
-        should_update = true;
+    for (int c=MAX_WAIT_FOR_PACKET; c>0; c--) {
+        if (_state == STATE_CONNECTED)
+            return;
 
-        usleep(1000);
-        if (time(NULL) - ts > MAX_WAIT_FOR_PACKET)
-            throw std::runtime_error("Channel or attrib not ready");
+        if (_state != STATE_CONNECTING)
+            throw std::runtime_error("Channel or attrib disconnected");
+
+        if (_ready.wait(1))
+            return;
     }
 
-    if (should_update) {
-        // Update connection settings (supervisor timeut > 0.42 s)
-        int l2cap_sock = g_io_channel_unix_get_fd(_channel);
-        struct l2cap_conninfo info;
-        socklen_t info_size = sizeof(info);
-
-        getsockopt(l2cap_sock, SOL_L2CAP, L2CAP_CONNINFO, &info, &info_size);
-        int handle = info.hci_handle;
-
-        int retval = hci_le_conn_update(
-                _hci_socket, handle, 24, 40, 0, 700, 25000);
-        if (retval < 0) {
-            std::string msg = "Could not update HCI connection: ";
-            msg += strerror(errno);
-            throw std::runtime_error(msg);
-        }
-    }
+    throw std::runtime_error("Channel or attrib not ready");
 }
 
 static void
@@ -539,7 +532,7 @@ boost::python::list GATTRequester::discover_primary() {
 	GATTResponse response;
 	discover_primary_async(&response);
 
-	if (not response.wait(5*MAX_WAIT_FOR_PACKET))
+	if (not response.wait(5 * MAX_WAIT_FOR_PACKET))
         // FIXME: now, response is deleted, but is still registered on
         // GLIB as callback!!
 		throw std::runtime_error("Device is not responding!");

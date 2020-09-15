@@ -29,7 +29,11 @@ class IOService {
 public:
 	IOService(bool run);
 	void start();
+	void stop();
 	void operator()();
+
+private:
+	GMainLoop* event_loop;
 };
 
 class GATTResponse {
@@ -81,6 +85,9 @@ public:
 	void discover_primary_async(GATTResponse* response);
 	boost::python::list discover_characteristics(int start = 0x0001, int end = 0xffff, std::string uuid = "");
 	void discover_characteristics_async(GATTResponse* response, int start = 0x0001, int end = 0xffff, std::string uuid = "");
+
+	GIOChannel* get_channel() { return _channel; }
+
 private:
 	void check_channel();
 	void check_connected();
@@ -97,6 +104,7 @@ private:
 	int _hci_socket;
 	GIOChannel* _channel;
 	GAttrib* _attrib;
+	Event _ready;
 };
 
 #endif // _MIBANDA_GATTLIB_H_

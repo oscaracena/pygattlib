@@ -1,3 +1,9 @@
+gattlib (0.20200915-1) unstable; urgency=low
+
+  * New release, simplify check_channel(), don't wait (too much) on error
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Tue, 15 Sep 2020 13:21:32 +0200
+
 gattlib (0.20200914-1) unstable; urgency=low
 
   * New release, update boost_python lib name
