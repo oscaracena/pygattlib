@@ -14,7 +14,7 @@ export PKG_CONFIG_PATH := $(PKG_CONFIG_PATH):/usr/lib/$(PLATFORM)-linux-gnu/pkgc
 # ifeq ($(PYTHON_VER),3)
 PYTHON_CONFIG = python3-config
 BOOST_PYTHON = $(shell \
-    ldconfig -p | 'grep' -E 'libboost_python3.*\.so ' | \
+    ldconfig -p | 'grep' -E 'libboost_python.*\.so ' | \
     awk '{i=index($$1,".");print substr($$1,4,i-4)}' \
 )
 # else

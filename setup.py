@@ -23,7 +23,7 @@ if sys.platform.startswith('linux'):
     # Dropping Py2 support
     # if sys.version_info.major == 3:
     boost_py = subprocess.check_output(
-        "ldconfig -p | grep -E 'libboost_python3.*\.so '", shell=True)
+        "ldconfig -p | grep -E 'libboost_python.*\.so '", shell=True)
     boost_py = os.path.splitext(boost_py.split()[0][3:])[0].decode()
 
     # else:
@@ -58,7 +58,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='gattlib',
-    version="0.20200915",
+    version="0.20200925",
     description="Library to access Bluetooth LE devices",
     long_description=long_description,
     long_description_content_type="text/markdown",
