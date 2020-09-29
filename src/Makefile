@@ -10,17 +10,8 @@ OBJECTS   = att.o crypto.o uuid.o gatt.o gattrib.o btio.o log.o utils.o \
 
 export PKG_CONFIG_PATH := $(PKG_CONFIG_PATH):/usr/lib/$(PLATFORM)-linux-gnu/pkgconfig/
 
-# Dropping Py2 support
-# ifeq ($(PYTHON_VER),3)
 PYTHON_CONFIG = python3-config
-BOOST_PYTHON = $(shell \
-    ldconfig -p | 'grep' -E 'libboost_python.*\.so ' | \
-    awk '{i=index($$1,".");print substr($$1,4,i-4)}' \
-)
-# else
-#   PYTHON_CONFIG = python-config
-#   BOOST_PYTHON  = boost_python
-# endif
+BOOST_PYTHON  = $(shell python3 ../setup.py --get-boost-lib)
 
 CFLAGS  += -ggdb -fPIC -Wall $$($(PYTHON_CONFIG) --includes) \
            -Ibluez $$(pkg-config --cflags glib-2.0)
@@ -41,6 +32,9 @@ all: $(TARGETS)
 
 gattlib.so: $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -shared -o $@ $^ $(LDFLAGS)
+
+print-boost-ver:
+	@echo $(BOOST_PYTHON)
 
 .PHONY: clean
 clean:

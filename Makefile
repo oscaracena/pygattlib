@@ -6,6 +6,7 @@ all:
 pypi-test-upload:
 	python3 setup.py sdist
 	twine upload --repository testpypi dist/*
+	@echo "pip install -i https://test.pypi.org/simple/ gattlib --force-reinstall"
 
 pypi-upload:
 	python3 setup.py sdist
