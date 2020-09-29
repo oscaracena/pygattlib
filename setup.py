@@ -45,6 +45,8 @@ def tests():
     expected = 'boost_python-py35'
     assert got == expected, "Case 3: got: '{}'".format(got)
 
+    print("OK, all seems fine.")
+
 
 if sys.platform.startswith('linux'):
     glib_headers = subprocess.check_output(
