@@ -80,7 +80,6 @@ public:
 	GATTResponse(PyObject* p);
 	virtual ~GATTResponse() {};
 
-	virtual void on_response(const std::string data);
 	virtual void on_response(boost::python::object data);
 	boost::python::list received();
 	bool wait(uint16_t timeout);
