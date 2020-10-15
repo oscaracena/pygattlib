@@ -38,7 +38,7 @@ public:
     }
 
     // to be called from c++ side
-    void on_response(const std::string data) {
+    void on_response(boost::python::object data) {
         try {
             call_method<void>(self, "on_response", data);
         } catch(error_already_set const&) {
@@ -47,7 +47,7 @@ public:
     }
 
     // to be called from python side
-    static void default_on_response(GATTResponse& self_, const std::string data) {
+    static void default_on_response(GATTResponse& self_, boost::python::object data) {
         self_.GATTResponse::on_response(data);
     }
 };

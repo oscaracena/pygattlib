@@ -77,13 +77,6 @@ GATTResponse::GATTResponse(PyObject* p) :
 }
 
 void
-GATTResponse::on_response(const std::string data) {
-    // this data is usually a binary blob, avoid string encoding/decoding
-    PyObject* bytes = PyBytes_FromStringAndSize(data.c_str(), data.length());
-    _data.append(boost::python::object(boost::python::handle<>(bytes)));
-}
-
-void
 GATTResponse::on_response(boost::python::object data) {
     _data.append(data);
 }
@@ -392,11 +385,12 @@ GATTRequester::disconnect() {
 static void
 read_by_handle_cb(guint8 status, const guint8* data,
         guint16 size, gpointer userp) {
-    // Note: first byte is the payload size, remove it
+    // Note: first byte is the opcode (ATT_READ_RSP 0x0b), remove it
     PyGILGuard guard;
     GATTResponse* response = (GATTResponse*)userp;
     if (!status && data) {
-        response->on_response(std::string((const char*)data + 1, size - 1));
+        PyObject* bytes = PyBytes_FromStringAndSize((const char*)data + 1, size - 1);
+        response->on_response(boost::python::object(boost::python::handle<>(bytes)));
     }
     response->notify(status);
     response->decref();
@@ -450,8 +444,8 @@ read_by_uuid_cb(guint8 status, const guint8* data,
         // Remove handle addr
         item += 2;
 
-        std::string value((const char*)item, list->len - 2);
-        response->on_response(value);
+        PyObject* bytes = PyBytes_FromStringAndSize((const char*)item, list->len - 2);
+        response->on_response(boost::python::object(boost::python::handle<>(bytes)));
     }
 
     att_data_list_free(list);
@@ -499,7 +493,8 @@ write_by_handle_cb(guint8 status, const guint8* data,
     PyGILGuard guard;
     GATTResponse* response = (GATTResponse*)userp;
     if (status == 0 && data) {
-        response->on_response(std::string((const char*)data, size));
+        PyObject* bytes = PyBytes_FromStringAndSize((const char*)data, size);
+        response->on_response(boost::python::object(boost::python::handle<>(bytes)));
     }
     response->notify(status);
     response->decref();
