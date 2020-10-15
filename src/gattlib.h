@@ -36,6 +36,36 @@ private:
 	GMainLoop* event_loop;
 };
 
+class BTIOException : public std::runtime_error
+{
+public:
+    BTIOException(int status_, const std::string &msg)
+        : std::runtime_error(msg), status(status_)
+    {
+    }
+    BTIOException(int status_, const char *msg)
+        : std::runtime_error(msg), status(status_)
+    {
+    }
+
+    int status;
+};
+
+class GATTException : public std::runtime_error
+{
+public:
+    GATTException(int status_, const std::string &msg)
+        : std::runtime_error(msg), status(status_)
+    {
+    }
+    GATTException(int status_, const char *msg)
+        : std::runtime_error(msg), status(status_)
+    {
+    }
+
+    int status;
+};
+
 class GATTPyBase {
 public:
     GATTPyBase(PyObject* p) : self(p) { }

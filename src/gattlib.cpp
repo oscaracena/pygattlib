@@ -104,7 +104,7 @@ GATTResponse::wait(uint16_t timeout) {
     if (_status != 0) {
         std::string msg = "Characteristic value/descriptor operation failed: ";
         msg += att_ecode2str(_status);
-        throw std::runtime_error(msg);
+        throw GATTException(_status, msg);
     }
 
     return true;
@@ -128,13 +128,13 @@ GATTRequester::GATTRequester(PyObject* p, std::string address, bool do_connect,
 
     int dev_id = hci_devid(_device.c_str());
     if (dev_id < 0)
-        throw std::runtime_error("Invalid device!");
+        throw BTIOException(EINVAL, "Invalid device!");
 
     _hci_socket = hci_open_dev(dev_id);
     if (_hci_socket < 0) {
         std::string msg = std::string("Could not open HCI device: ") +
             std::string(strerror(errno));
-        throw std::runtime_error(msg);
+        throw BTIOException(errno, msg);
     }
 
     if (do_connect)
@@ -274,7 +274,7 @@ GATTRequester::connect(
         std::string security_level, int psm, int mtu) {
 
     if (_state != STATE_DISCONNECTED)
-        throw std::runtime_error("Already connecting or connected");
+        throw BTIOException(EISCONN, "Already connecting or connected");
 
     _state = STATE_CONNECTING;
 
@@ -299,8 +299,9 @@ GATTRequester::connect(
         _state = STATE_DISCONNECTED;
 
         std::string msg(gerr->message);
+        int ecode = gerr->code;
         g_error_free(gerr);
-        throw std::runtime_error(msg);
+        throw BTIOException(ecode, msg);
     }
 
     incref();
@@ -359,7 +360,7 @@ GATTRequester::connect_kwarg(boost::python::tuple args, boost::python::dict kwar
 
 	// Check that we have used all keyword arguments
 	if (kwargsused != boost::python::len(kwargs))
-		throw std::runtime_error("Error in keyword arguments");
+            throw BTIOException(EINVAL, "Error in keyword arguments");
 
 	// Call the real method
 	self.connect(wait, channel_type, security_level, psm, mtu);
@@ -419,7 +420,7 @@ GATTRequester::read_by_handle(uint16_t handle) {
         read_by_handle_async(handle, &response);
 
         if (not response.wait(MAX_WAIT_FOR_PACKET))
-            throw std::runtime_error("Device is not responding!");
+            throw GATTException(ATT_ECODE_TIMEOUT, "Device is not responding!");
     }
 
     return response.received();
@@ -466,7 +467,7 @@ GATTRequester::read_by_uuid_async(std::string uuid, GATTResponse* response) {
 
     check_channel();
     if (bt_string_to_uuid(&btuuid, uuid.c_str()) < 0)
-        throw std::runtime_error("Invalid UUID\n");
+        throw BTIOException(EINVAL, "Invalid UUID\n");
 
     response->incref();
     gatt_read_char_by_uuid(_attrib, start, end, &btuuid, read_by_uuid_cb,
@@ -485,7 +486,7 @@ GATTRequester::read_by_uuid(std::string uuid) {
         read_by_uuid_async(uuid, &response);
 
         if (not response.wait(MAX_WAIT_FOR_PACKET))
-            throw std::runtime_error("Device is not responding!");
+            throw GATTException(ATT_ECODE_TIMEOUT, "Device is not responding!");
     }
 
     return response.received();
@@ -525,7 +526,7 @@ GATTRequester::write_by_handle(uint16_t handle, std::string data) {
         write_by_handle_async(handle, data, &response);
 
         if (not response.wait(MAX_WAIT_FOR_PACKET))
-            throw std::runtime_error("Device is not responding!");
+            throw GATTException(ATT_ECODE_TIMEOUT, "Device is not responding!");
     }
 
     return response.received();
@@ -546,13 +547,13 @@ GATTRequester::check_channel() {
             return;
 
         if (_state != STATE_CONNECTING)
-            throw std::runtime_error("Channel or attrib disconnected");
+            throw BTIOException(ECONNRESET, "Channel or attrib disconnected");
 
         if (_ready.wait(1))
             return;
     }
 
-    throw std::runtime_error("Channel or attrib not ready");
+    throw BTIOException(ETIMEDOUT, "Channel or attrib not ready");
 }
 
 static void
@@ -587,7 +588,7 @@ GATTRequester::discover_primary_async(GATTResponse* response) {
     if( not gatt_discover_primary(
             _attrib, NULL, discover_primary_cb, (gpointer)response)) {
         response->decref();
-        throw std::runtime_error("Discover primary failed");
+        throw BTIOException(ENOMEM, "Discover primary failed");
     }
 }
 
@@ -601,7 +602,7 @@ boost::python::list GATTRequester::discover_primary() {
 	discover_primary_async(&response);
 
 	if (not response.wait(5 * MAX_WAIT_FOR_PACKET))
-		throw std::runtime_error("Device is not responding!");
+            throw GATTException(ATT_ECODE_TIMEOUT, "Device is not responding!");
     }
 
     return response.received();
@@ -646,7 +647,7 @@ void GATTRequester::discover_characteristics_async(GATTResponse* response,
     } else {
         bt_uuid_t uuid;
         if (bt_string_to_uuid(&uuid, uuid_str.c_str()) < 0) {
-            throw std::runtime_error("Invalid UUID");
+            throw BTIOException(EINVAL, "Invalid UUID");
         }
         //TODO handle error
         response->incref();
@@ -666,7 +667,7 @@ boost::python::list GATTRequester::discover_characteristics(int start, int end,
         discover_characteristics_async(&response, start, end, uuid_str);
 
         if (not response.wait(5 * MAX_WAIT_FOR_PACKET))
-            throw std::runtime_error("Device is not responding!");
+            throw GATTException(ATT_ECODE_TIMEOUT, "Device is not responding!");
     }
 
     return response.received();
@@ -674,5 +675,5 @@ boost::python::list GATTRequester::discover_characteristics(int start, int end,
 
 void GATTRequester::check_connected() {
     if (_state != STATE_CONNECTED)
-        throw std::runtime_error("Not connected");
+        throw BTIOException(ENOTCONN, "Not connected");
 }
