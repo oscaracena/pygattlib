@@ -73,7 +73,7 @@ static volatile IOService _instance(true);
 
 GATTResponse::GATTResponse(PyObject* p) :
     GATTPyBase(p),
-    _status(0) {
+    _complete(false), _status(0) {
 }
 
 void
@@ -84,6 +84,12 @@ GATTResponse::on_response(boost::python::object data) {
 void
 GATTResponse::notify(uint8_t status) {
     _status = status;
+    _complete = true;
+    if (!status) {
+      on_response_complete();
+    } else {
+      on_response_failed(status);
+    }
     _event.set();
 }
 
@@ -101,6 +107,22 @@ GATTResponse::wait(uint16_t timeout) {
     }
 
     return true;
+}
+
+bool
+GATTResponse::wait_locked(uint16_t timeout) {
+    PyThreadsGuard guard;
+    return wait(timeout);
+}
+
+bool
+GATTResponse::complete() {
+    return _complete;
+}
+
+int
+GATTResponse::status() {
+    return _status;
 }
 
 boost::python::list
@@ -217,6 +239,7 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
         std::cout << "PyGattLib ERROR: " << std::string(err->message) << std::endl;
 
         request->_state = GATTRequester::STATE_ERROR_CONNECTING;
+        request->on_connect_failed(err->code);
         g_error_free(err);
         request->decref();
         return;
@@ -248,6 +271,7 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
             events_handler, userp, events_destroy);
 
     request->_state = GATTRequester::STATE_CONNECTED;
+    request->on_connect(mtu);
     request->_ready.set();
     request->decref();
 }
@@ -379,6 +403,7 @@ GATTRequester::disconnect() {
     _channel = NULL;
 
     _state = STATE_DISCONNECTED;
+    on_disconnect();
     decref();
 }
 

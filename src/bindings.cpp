@@ -50,6 +50,34 @@ public:
     static void default_on_response(GATTResponse& self_, boost::python::object data) {
         self_.GATTResponse::on_response(data);
     }
+
+    // to be called from c++ side
+    void on_response_complete() {
+        try {
+            call_method<void>(self, "on_response_complete");
+        } catch(error_already_set const&) {
+            PyErr_Print();
+        }
+    }
+
+    // to be called from python side
+    static void default_on_response_complete(GATTResponse& self_) {
+        self_.GATTResponse::on_response_complete();
+    }
+
+    // to be called from c++ side
+    void on_response_failed(int status) {
+        try {
+            call_method<void>(self, "on_response_failed", status);
+        } catch(error_already_set const&) {
+            PyErr_Print();
+        }
+    }
+
+    // to be called from python side
+    static void default_on_response_failed(GATTResponse& self_, int status) {
+        self_.GATTResponse::on_response_failed(status);
+    }
 };
 
 class GATTRequesterCb : public GATTRequester {
@@ -57,6 +85,51 @@ public:
     GATTRequesterCb(PyObject* p, std::string address,
             bool do_connect=true, std::string device="hci0") :
         GATTRequester(p, address, do_connect, device) {
+    }
+
+    // to be called from c++ side
+    void on_connect(int mtu) {
+        try {
+          call_method<void>(self, "on_connect", mtu);
+        } catch(error_already_set const&) {
+            PyErr_Print();
+        }
+    }
+
+    // to be called from python side
+    static void default_on_connect(GATTRequester& self_, int mtu)
+    {
+        self_.GATTRequester::on_connect(mtu);
+    }
+
+    // to be called from c++ side
+    void on_connect_failed(int code) {
+        try {
+          call_method<void>(self, "on_connect_failed", code);
+        } catch(error_already_set const&) {
+            PyErr_Print();
+        }
+    }
+
+    // to be called from python side
+    static void default_on_connect_failed(GATTRequester& self_, int code)
+    {
+        self_.GATTRequester::on_connect_failed(code);
+    }
+
+    // to be called from c++ side
+    void on_disconnect() {
+        try {
+            call_method<void>(self, "on_disconnect");
+        } catch(error_already_set const&) {
+            PyErr_Print();
+        }
+    }
+
+    // to be called from python side
+    static void default_on_disconnect(GATTRequester& self_)
+    {
+        self_.GATTRequester::on_disconnect();
     }
 
     // to be called from c++ side
@@ -104,6 +177,10 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         GATTRequester_discover_characteristics_async_overloads,
         GATTRequester::discover_characteristics_async, 1, 4)
+
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
+        GATTResponse_wait_overloads,
+        GATTResponse::wait_locked, 0, 1)
 
 static PyObject*
 createExceptionClass(const char* name, PyObject* baseType, boost::python::object &pyrv, const char *docstr=NULL)
@@ -191,7 +268,10 @@ BOOST_PYTHON_MODULE(gattlib) {
 
         .def("connect", boost::python::raw_function(GATTRequester::connect_kwarg,1))
         .def("is_connected", &GATTRequester::is_connected)
+        .def("on_connect", &GATTRequesterCb::default_on_connect)
+        .def("on_connect_failed", &GATTRequesterCb::default_on_connect_failed)
         .def("disconnect", &GATTRequester::disconnect)
+        .def("on_disconnect", &GATTRequesterCb::default_on_disconnect)
         .def("read_by_handle", &GATTRequester::read_by_handle)
         .def("read_by_handle_async", &GATTRequester::read_by_handle_async)
         .def("read_by_uuid", &GATTRequester::read_by_uuid)
@@ -215,8 +295,13 @@ BOOST_PYTHON_MODULE(gattlib) {
     register_ptr_to_python<GATTResponse*>();
 
     pyGATTResponse = class_<GATTResponse, boost::noncopyable, GATTResponseCb>("GATTResponse")
+            .def("complete", &GATTResponse::complete)
+            .def("status", &GATTResponse::status)
+            .def("wait", &GATTResponse::wait_locked, GATTResponse_wait_overloads())
             .def("received", &GATTResponse::received)
-            .def("on_response", &GATTResponseCb::default_on_response);
+            .def("on_response", &GATTResponseCb::default_on_response)
+            .def("on_response_complete", &GATTResponseCb::default_on_response_complete)
+            .def("on_response_failed", &GATTResponseCb::default_on_response_failed);
 
     class_<DiscoveryService>("DiscoveryService", init<optional<std::string> >())
             .def("discover", &DiscoveryService::discover);
