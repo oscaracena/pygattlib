@@ -33,6 +33,14 @@ private:
     PyThreadState* _save;
 };
 
+class PyGILGuard {
+public:
+    PyGILGuard() { _state = PyGILState_Ensure(); }
+    ~PyGILGuard() { PyGILState_Release(_state); }
+
+private:
+    PyGILState_STATE _state;
+};
 
 IOService::IOService(bool run) {
     if (run)
@@ -63,7 +71,8 @@ IOService::operator()() {
 
 static volatile IOService _instance(true);
 
-GATTResponse::GATTResponse() :
+GATTResponse::GATTResponse(PyObject* p) :
+    GATTPyBase(p),
     _status(0) {
 }
 
@@ -107,8 +116,9 @@ GATTResponse::received() {
 }
 
 
-GATTRequester::GATTRequester(std::string address, bool do_connect,
+GATTRequester::GATTRequester(PyObject* p, std::string address, bool do_connect,
         std::string device) :
+    GATTPyBase(p),
     _state(STATE_DISCONNECTED),
     _device(device),
     _address(address),
@@ -172,13 +182,19 @@ events_handler(const uint8_t* data, uint16_t size, gpointer userp) {
 
     switch(data[0]) {
     case ATT_OP_HANDLE_NOTIFY:
-        request->on_notification(handle, std::string((const char*)data, size));
+        {
+            PyGILGuard guard;
+            request->on_notification(handle, std::string((const char*)data, size));
+        }
         return;
     case ATT_OP_HANDLE_IND:
-        request->on_indication(handle, std::string((const char*)data, size));
+        {
+            PyGILGuard guard;
+            request->on_indication(handle, std::string((const char*)data, size));
+        }
         break;
     default:
-        throw std::runtime_error("Invalid event opcode!");
+        return;
     }
 
     size_t plen;
@@ -190,7 +206,18 @@ events_handler(const uint8_t* data, uint16_t size, gpointer userp) {
 }
 
 void
+events_destroy(gpointer userp)
+{
+    PyGILGuard guard;
+    GATTRequester* request = (GATTRequester*)userp;
+    // This is called for each of the two events we register for, so release
+    // each one's reference individually.
+    request->decref();
+}
+
+void
 connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
+    PyGILGuard guard;
     GATTRequester* request = (GATTRequester*)userp;
 
     if (err) {
@@ -198,6 +225,7 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 
         request->_state = GATTRequester::STATE_ERROR_CONNECTING;
         g_error_free(err);
+        request->decref();
         return;
     }
 
@@ -219,17 +247,21 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 
     request->_attrib = g_attrib_new(channel, mtu);
 
+    request->incref();
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY,
-            GATTRIB_ALL_HANDLES, events_handler, userp, NULL);
+            GATTRIB_ALL_HANDLES, events_handler, userp, events_destroy);
+    request->incref();
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_IND, GATTRIB_ALL_HANDLES,
-            events_handler, userp, NULL);
+            events_handler, userp, events_destroy);
 
     request->_state = GATTRequester::STATE_CONNECTED;
     request->_ready.set();
+    request->decref();
 }
 
 gboolean
 disconnect_cb(GIOChannel* channel, GIOCondition cond, gpointer userp) {
+    PyGILGuard guard;
     GATTRequester* request = (GATTRequester*)userp;
     if (channel == request->get_channel())
         request->disconnect();
@@ -247,16 +279,21 @@ GATTRequester::connect(
     _state = STATE_CONNECTING;
 
     GError *gerr = NULL;
-    _channel = gatt_connect
-        (_device.c_str(),          // 'hciX'
-         _address.c_str(),         // 'mac address'
-         channel_type.c_str(),     // 'public' '[public | random]'
-         security_level.c_str(),   // sec_level, '[low | medium | high]'
-         psm,                      // 0, psm
-         mtu,                      // 0, mtu
-         connect_cb,
-         &gerr,
-         (gpointer)this);
+    incref();
+    {
+        PyThreadsGuard guard;
+
+        _channel = gatt_connect
+            (_device.c_str(),          // 'hciX'
+             _address.c_str(),         // 'mac address'
+             channel_type.c_str(),     // 'public' '[public | random]'
+             security_level.c_str(),   // sec_level, '[low | medium | high]'
+             psm,                      // 0, psm
+             mtu,                      // 0, mtu
+             connect_cb,
+             &gerr,
+             (gpointer)this);
+    }
 
     if (_channel == NULL) {
         _state = STATE_DISCONNECTED;
@@ -266,9 +303,12 @@ GATTRequester::connect(
         throw std::runtime_error(msg);
     }
 
+    incref();
     g_io_add_watch(_channel, G_IO_HUP, disconnect_cb, (gpointer)this);
-    if (wait)
+    if (wait) {
+        PyThreadsGuard guard;
         check_channel();
+    }
 }
 
 boost::python::object
@@ -345,34 +385,42 @@ GATTRequester::disconnect() {
     _channel = NULL;
 
     _state = STATE_DISCONNECTED;
+    decref();
 }
 
 static void
-read_by_handler_cb(guint8 status, const guint8* data,
+read_by_handle_cb(guint8 status, const guint8* data,
         guint16 size, gpointer userp) {
     // Note: first byte is the payload size, remove it
+    PyGILGuard guard;
     GATTResponse* response = (GATTResponse*)userp;
     if (!status && data) {
         response->on_response(std::string((const char*)data + 1, size - 1));
     }
     response->notify(status);
+    response->decref();
 }
 
 void
 GATTRequester::read_by_handle_async(uint16_t handle, GATTResponse* response) {
     check_channel();
-    gatt_read_char(_attrib, handle, read_by_handler_cb, (gpointer)response);
+    response->incref();
+    gatt_read_char(_attrib, handle, read_by_handle_cb, (gpointer)response);
 }
 
 boost::python::list
 GATTRequester::read_by_handle(uint16_t handle) {
-    GATTResponse response;
-    read_by_handle_async(handle, &response);
+    boost::python::object pyresponse = pyGATTResponse();
+    GATTResponse &response = boost::python::extract<GATTResponse&>(pyresponse)();
 
-    if (not response.wait(MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
-        throw std::runtime_error("Device is not responding!");
+    {
+        PyThreadsGuard guard;
+
+        read_by_handle_async(handle, &response);
+
+        if (not response.wait(MAX_WAIT_FOR_PACKET))
+            throw std::runtime_error("Device is not responding!");
+    }
 
     return response.received();
 }
@@ -381,9 +429,11 @@ static void
 read_by_uuid_cb(guint8 status, const guint8* data,
         guint16 size, gpointer userp) {
 
+    PyGILGuard guard;
     GATTResponse* response = (GATTResponse*)userp;
     if (status || !data) {
         response->notify(status);
+        response->decref();
         return;
     }
 
@@ -405,6 +455,7 @@ read_by_uuid_cb(guint8 status, const guint8* data,
 
     att_data_list_free(list);
     response->notify(status);
+    response->decref();
 }
 
 void
@@ -417,6 +468,7 @@ GATTRequester::read_by_uuid_async(std::string uuid, GATTResponse* response) {
     if (bt_string_to_uuid(&btuuid, uuid.c_str()) < 0)
         throw std::runtime_error("Invalid UUID\n");
 
+    response->incref();
     gatt_read_char_by_uuid(_attrib, start, end, &btuuid, read_by_uuid_cb,
                            (gpointer)response);
 
@@ -424,14 +476,17 @@ GATTRequester::read_by_uuid_async(std::string uuid, GATTResponse* response) {
 
 boost::python::list
 GATTRequester::read_by_uuid(std::string uuid) {
-    GATTResponse response;
+    boost::python::object pyresponse = pyGATTResponse();
+    GATTResponse &response = boost::python::extract<GATTResponse&>(pyresponse)();
 
-    read_by_uuid_async(uuid, &response);
+    {
+        PyThreadsGuard guard;
 
-    if (not response.wait(MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
-        throw std::runtime_error("Device is not responding!");
+        read_by_uuid_async(uuid, &response);
+
+        if (not response.wait(MAX_WAIT_FOR_PACKET))
+            throw std::runtime_error("Device is not responding!");
+    }
 
     return response.received();
 }
@@ -440,11 +495,13 @@ static void
 write_by_handle_cb(guint8 status, const guint8* data,
         guint16 size, gpointer userp) {
 
+    PyGILGuard guard;
     GATTResponse* response = (GATTResponse*)userp;
     if (status == 0 && data) {
         response->on_response(std::string((const char*)data, size));
     }
     response->notify(status);
+    response->decref();
 }
 
 void
@@ -452,22 +509,24 @@ GATTRequester::write_by_handle_async(uint16_t handle, std::string data,
                                      GATTResponse* response) {
 
     check_channel();
+    response->incref();
     gatt_write_char(_attrib, handle, (const uint8_t*)data.data(), data.size(),
                     write_by_handle_cb, (gpointer)response);
 }
 
 boost::python::list
 GATTRequester::write_by_handle(uint16_t handle, std::string data) {
-    // FIXME: this causes a segfault when some exception is thrown, why?
-    // PyThreadsGuard guard;
-    GATTResponse response;
+    boost::python::object pyresponse = pyGATTResponse();
+    GATTResponse &response = boost::python::extract<GATTResponse&>(pyresponse)();
 
-    write_by_handle_async(handle, data, &response);
+    {
+        PyThreadsGuard guard;
 
-    if (not response.wait(MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
-        throw std::runtime_error("Device is not responding!");
+        write_by_handle_async(handle, data, &response);
+
+        if (not response.wait(MAX_WAIT_FOR_PACKET))
+            throw std::runtime_error("Device is not responding!");
+    }
 
     return response.received();
 }
@@ -499,9 +558,11 @@ GATTRequester::check_channel() {
 static void
 discover_primary_cb(guint8 status, GSList *services, void *userp) {
 
+    PyGILGuard guard;
     GATTResponse* response = (GATTResponse*)userp;
     if (status || !services) {
         response->notify(status);
+        response->decref();
         return;
     }
 
@@ -515,29 +576,35 @@ discover_primary_cb(guint8 status, GSList *services, void *userp) {
     }
 
     response->notify(status);
+    response->decref();
 }
 
 
 void
 GATTRequester::discover_primary_async(GATTResponse* response) {
     check_connected();
+    response->incref();
     if( not gatt_discover_primary(
             _attrib, NULL, discover_primary_cb, (gpointer)response)) {
+        response->decref();
         throw std::runtime_error("Discover primary failed");
     }
 }
 
 boost::python::list GATTRequester::discover_primary() {
-    PyThreadsGuard guard;
-	GATTResponse response;
+    boost::python::object pyresponse = pyGATTResponse();
+    GATTResponse &response = boost::python::extract<GATTResponse&>(pyresponse)();
+
+    {
+        PyThreadsGuard guard;
+
 	discover_primary_async(&response);
 
 	if (not response.wait(5 * MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
 		throw std::runtime_error("Device is not responding!");
-	return response.received();
+    }
 
+    return response.received();
 }
 
 /* Characteristics Discovery
@@ -545,9 +612,11 @@ boost::python::list GATTRequester::discover_primary() {
  */
 static void discover_char_cb(guint8 status, GSList *characteristics,
         void *user_data) {
+    PyGILGuard guard;
     GATTResponse* response = (GATTResponse*) user_data;
     if (status || !characteristics) {
         response->notify(status);
+        response->decref();
         return;
     }
 
@@ -562,6 +631,7 @@ static void discover_char_cb(guint8 status, GSList *characteristics,
     }
 
     response->notify(status);
+    response->decref();
 }
 
 void GATTRequester::discover_characteristics_async(GATTResponse* response,
@@ -570,6 +640,7 @@ void GATTRequester::discover_characteristics_async(GATTResponse* response,
 
     if (uuid_str.size() == 0) {
         //TODO handle error
+        response->incref();
         gatt_discover_char(_attrib, start, end, NULL, discover_char_cb,
                 (gpointer) response);
     } else {
@@ -578,6 +649,7 @@ void GATTRequester::discover_characteristics_async(GATTResponse* response,
             throw std::runtime_error("Invalid UUID");
         }
         //TODO handle error
+        response->incref();
         gatt_discover_char(_attrib, start, end, &uuid, discover_char_cb,
                 (gpointer) response);
     }
@@ -585,16 +657,19 @@ void GATTRequester::discover_characteristics_async(GATTResponse* response,
 
 boost::python::list GATTRequester::discover_characteristics(int start, int end,
         std::string uuid_str) {
-    PyThreadsGuard guard;
-    GATTResponse response;
-    discover_characteristics_async(&response, start, end, uuid_str);
+    boost::python::object pyresponse = pyGATTResponse();
+    GATTResponse &response = boost::python::extract<GATTResponse&>(pyresponse)();
 
-    if (not response.wait(5 * MAX_WAIT_FOR_PACKET))
-        // FIXME: now, response is deleted, but is still registered on
-        // GLIB as callback!!
-        throw std::runtime_error("Device is not responding!");
+    {
+        PyThreadsGuard guard;
+
+        discover_characteristics_async(&response, start, end, uuid_str);
+
+        if (not response.wait(5 * MAX_WAIT_FOR_PACKET))
+            throw std::runtime_error("Device is not responding!");
+    }
+
     return response.received();
-
 }
 
 void GATTRequester::check_connected() {

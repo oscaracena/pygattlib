@@ -15,14 +15,7 @@
 
 using namespace boost::python;
 
-class PyGILGuard {
-public:
-    PyGILGuard() { _state = PyGILState_Ensure(); }
-    ~PyGILGuard() { PyGILState_Release(_state); }
-
-private:
-    PyGILState_STATE _state;
-};
+boost::python::object pyGATTResponse;
 
 /** to-python convert for std::vector<char> */
 struct bytes_vector_to_python_bytes
@@ -35,12 +28,11 @@ struct bytes_vector_to_python_bytes
 
 class GATTResponseCb : public GATTResponse {
 public:
-    GATTResponseCb(PyObject* p) : self(p) {
+    GATTResponseCb(PyObject* p) : GATTResponse(p) {
     }
 
     // to be called from c++ side
     void on_response(const std::string data) {
-        PyGILGuard guard;
         try {
             call_method<void>(self, "on_response", data);
         } catch(error_already_set const&) {
@@ -52,22 +44,17 @@ public:
     static void default_on_response(GATTResponse& self_, const std::string data) {
         self_.GATTResponse::on_response(data);
     }
-
-private:
-    PyObject* self;
 };
 
 class GATTRequesterCb : public GATTRequester {
 public:
     GATTRequesterCb(PyObject* p, std::string address,
             bool do_connect=true, std::string device="hci0") :
-        GATTRequester(address, do_connect, device),
-        self(p) {
+        GATTRequester(p, address, do_connect, device) {
     }
 
     // to be called from c++ side
     void on_notification(const uint16_t handle, const std::string data) {
-        PyGILGuard guard;
         try {
             const std::vector<char> vecdata(data.begin(), data.end());
             call_method<void>(self, "on_notification", handle, vecdata);
@@ -85,7 +72,6 @@ public:
 
     // to be called from c++ side
     void on_indication(const uint16_t handle, const std::string data) {
-        PyGILGuard guard;
         try {
             const std::vector<char> vecdata(data.begin(), data.end());
             call_method<void>(self, "on_indication", handle, vecdata);
@@ -100,9 +86,6 @@ public:
                                       const std::string data) {
         self_.GATTRequester::on_indication(handle, data);
     }
-
-private:
-    PyObject* self;
 };
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
@@ -150,7 +133,7 @@ BOOST_PYTHON_MODULE(gattlib) {
 
     register_ptr_to_python<GATTResponse*>();
 
-    class_<GATTResponse, boost::noncopyable, GATTResponseCb>("GATTResponse")
+    pyGATTResponse = class_<GATTResponse, boost::noncopyable, GATTResponseCb>("GATTResponse")
             .def("received", &GATTResponse::received)
             .def("on_response", &GATTResponseCb::default_on_response);
 

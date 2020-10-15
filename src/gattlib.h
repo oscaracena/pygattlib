@@ -36,9 +36,18 @@ private:
 	GMainLoop* event_loop;
 };
 
-class GATTResponse {
+class GATTPyBase {
 public:
-	GATTResponse();
+    GATTPyBase(PyObject* p) : self(p) { }
+    void incref() { Py_INCREF(self); }
+    void decref() { Py_DECREF(self); }
+protected:
+    PyObject* self;
+};
+
+class GATTResponse : public GATTPyBase {
+public:
+	GATTResponse(PyObject* p);
 	virtual ~GATTResponse() {};
 
 	virtual void on_response(const std::string data);
@@ -53,11 +62,13 @@ private:
 	Event _event;
 };
 
+extern boost::python::object pyGATTResponse;
+
 void connect_cb(GIOChannel* channel, GError* err, gpointer user_data);
 
-class GATTRequester {
+class GATTRequester : public GATTPyBase {
 public:
-	GATTRequester(std::string address,
+    GATTRequester(PyObject* p, std::string address,
 			bool do_connect=true, std::string device="hci0");
 	virtual ~GATTRequester();
 
