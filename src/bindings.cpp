@@ -16,6 +16,12 @@
 using namespace boost::python;
 
 boost::python::object pyGATTResponse;
+boost::python::object pyBaseException;
+PyObject* pyBaseExceptionPtr = NULL;
+boost::python::object pyBTIOException;
+PyObject* pyBTIOExceptionPtr = NULL;
+boost::python::object pyGATTException;
+PyObject* pyGATTExceptionPtr = NULL;
 
 /** to-python convert for std::vector<char> */
 struct bytes_vector_to_python_bytes
@@ -99,9 +105,84 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         GATTRequester_discover_characteristics_async_overloads,
         GATTRequester::discover_characteristics_async, 1, 4)
 
+static PyObject*
+createExceptionClass(const char* name, PyObject* baseType, boost::python::object &pyrv, const char *docstr=NULL)
+{
+    boost::python::object scope = boost::python::scope();
+    std::string scopename = boost::python::extract<std::string>(scope.attr("__name__"));
+    std::string qname = scopename + "." + name;
+    PyObject* rv = PyErr_NewExceptionWithDoc(qname.c_str(), docstr, baseType, 0);
+    boost::python::object o(boost::python::handle<>(boost::python::borrowed(rv)));
+    pyrv = o;
+    scope.attr(name) = pyrv;
+    return rv;
+}
+
+void
+translate_BTIOException(const BTIOException& e)
+{
+    boost::python::object pye(pyBTIOException(e.what()));
+    pye.attr("code") = e.status;
+    PyErr_SetObject(pyBTIOExceptionPtr, pye.ptr());
+}
+
+void
+translate_GATTException(const GATTException& e)
+{
+    boost::python::object pye(pyGATTException(e.what()));
+    pye.attr("status") = e.status;
+    PyErr_SetObject(pyGATTExceptionPtr, pye.ptr());
+}
+
+#define BOOST_PYTHON_CONSTANT(x) boost::python::scope().attr(#x) = x
+
 BOOST_PYTHON_MODULE(gattlib) {
 
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_INVALID_HANDLE);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_READ_NOT_PERM);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_WRITE_NOT_PERM);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_INVALID_PDU);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_AUTHENTICATION);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_REQ_NOT_SUPP);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_INVALID_OFFSET);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_AUTHORIZATION);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_PREP_QUEUE_FULL);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_ATTR_NOT_FOUND);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_ATTR_NOT_LONG);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_INSUFF_ENCR_KEY_SIZE);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_INVAL_ATTR_VALUE_LEN);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_UNLIKELY);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_INSUFF_ENC);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_UNSUPP_GRP_TYPE);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_INSUFF_RESOURCES);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_IO);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_TIMEOUT);
+    BOOST_PYTHON_CONSTANT(ATT_ECODE_ABORTED);
+
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_BROADCAST);
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_READ);
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_WRITE_WITHOUT_RESP);
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_WRITE);
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_NOTIFY);
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_INDICATE);
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_AUTH);
+    BOOST_PYTHON_CONSTANT(GATT_CHR_PROP_EXT_PROP);
+
+    BOOST_PYTHON_CONSTANT(GATT_CLIENT_CHARAC_CFG_NOTIF_BIT);
+    BOOST_PYTHON_CONSTANT(GATT_CLIENT_CHARAC_CFG_IND_BIT);
+
     to_python_converter<std::vector<char>, bytes_vector_to_python_bytes>();
+
+    pyBaseExceptionPtr = createExceptionClass("BTBaseException", PyExc_RuntimeError, pyBaseException,
+        "Base for custom gattlib exceptions.");
+
+    pyBTIOExceptionPtr = createExceptionClass("BTIOException", pyBaseExceptionPtr, pyBTIOException,
+        "Parameter, state and BT protocol level errors. code is an errno value.");
+    register_exception_translator<BTIOException>(&translate_BTIOException);
+
+    pyGATTExceptionPtr = createExceptionClass("GATTException", pyBaseExceptionPtr, pyGATTException,
+        "GATT level errors. status is an ATT_ECODE_* value.");
+    register_exception_translator<GATTException>(&translate_GATTException);
 
     register_ptr_to_python<GATTRequester*>();
 
