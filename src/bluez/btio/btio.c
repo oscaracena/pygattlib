@@ -43,6 +43,63 @@
 
 #include "btio.h"
 
+GMainContext *btcontext = NULL;
+
+void bt_io_set_context(GMainContext *c)
+{
+  btcontext = c;
+}
+
+guint x_g_io_add_watch(GIOChannel *channel,
+                       GIOCondition condition,
+                       GIOFunc func,
+                       gpointer user_data)
+{
+  GSource *s = g_io_create_watch(channel, condition);
+  g_source_set_callback(s, (GSourceFunc)func, user_data, NULL);
+  guint id = g_source_attach(s, btcontext);
+  g_source_unref(s);
+  return id;
+}
+
+guint x_g_io_add_watch_full(GIOChannel *channel,
+                            gint priority,
+                            GIOCondition condition,
+                            GIOFunc func,
+                            gpointer user_data,
+                            GDestroyNotify notify)
+{
+  GSource *s = g_io_create_watch(channel, condition);
+  if (priority != G_PRIORITY_DEFAULT)
+    g_source_set_priority(s, priority);
+  g_source_set_callback(s, (GSourceFunc)func, user_data, notify);
+  guint id = g_source_attach(s, btcontext);
+  g_source_unref(s);
+  return id;
+}
+
+guint x_g_timeout_add_seconds(guint interval,
+                              GSourceFunc function,
+                              gpointer data)
+{
+  GSource *s = g_timeout_source_new_seconds(interval);
+  g_source_set_callback(s, function, data, NULL);
+  guint id = g_source_attach(s, btcontext);
+  g_source_unref(s);
+  return id;
+}
+
+gboolean x_g_source_remove(guint tag)
+{
+  GSource *source = g_main_context_find_source_by_id(btcontext, tag);
+  if (source)
+    g_source_destroy(source);
+  else
+    g_critical("Source ID %u was not found when attempting to remove it", tag);
+
+  return source!=NULL;
+}
+
 #ifndef BT_FLUSHABLE
 #define BT_FLUSHABLE	8
 #endif
@@ -282,7 +339,7 @@ static void server_add(GIOChannel *io, BtIOConnect connect,
 	server->destroy = destroy;
 
 	cond = G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL;
-	g_io_add_watch_full(io, G_PRIORITY_DEFAULT, cond, server_cb, server,
+	x_g_io_add_watch_full(io, G_PRIORITY_DEFAULT, cond, server_cb, server,
 					(GDestroyNotify) server_remove);
 }
 
@@ -298,7 +355,7 @@ static void connect_add(GIOChannel *io, BtIOConnect connect,
 	conn->destroy = destroy;
 
 	cond = G_IO_OUT | G_IO_ERR | G_IO_HUP | G_IO_NVAL;
-	g_io_add_watch_full(io, G_PRIORITY_DEFAULT, cond, connect_cb, conn,
+	x_g_io_add_watch_full(io, G_PRIORITY_DEFAULT, cond, connect_cb, conn,
 					(GDestroyNotify) connect_remove);
 }
 
@@ -314,7 +371,7 @@ static void accept_add(GIOChannel *io, BtIOConnect connect, gpointer user_data,
 	accept->destroy = destroy;
 
 	cond = G_IO_OUT | G_IO_ERR | G_IO_HUP | G_IO_NVAL;
-	g_io_add_watch_full(io, G_PRIORITY_DEFAULT, cond, accept_cb, accept,
+	x_g_io_add_watch_full(io, G_PRIORITY_DEFAULT, cond, accept_cb, accept,
 					(GDestroyNotify) accept_remove);
 }
 

@@ -26,6 +26,24 @@
 
 #include <glib.h>
 
+/* These glib overrides ensure that all our callbacks fire on the
+ * correct thread. */
+void bt_io_set_context(GMainContext *c);
+guint x_g_io_add_watch(GIOChannel *channel,
+                       GIOCondition condition,
+                       GIOFunc func,
+                       gpointer user_data);
+guint x_g_io_add_watch_full(GIOChannel *channel,
+                            gint priority,
+                            GIOCondition condition,
+                            GIOFunc func,
+                            gpointer user_data,
+                            GDestroyNotify notify);
+guint x_g_timeout_add_seconds(guint interval,
+                              GSourceFunc function,
+                              gpointer data);
+gboolean x_g_source_remove(guint tag);
+
 #define BT_IO_ERROR bt_io_error_quark()
 
 GQuark bt_io_error_quark(void);
