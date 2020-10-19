@@ -81,11 +81,17 @@ public:
 	virtual ~GATTResponse() {};
 
 	virtual void on_response(boost::python::object data);
+	virtual void on_response_complete() { }
+	virtual void on_response_failed(int status) { }
+	bool complete();
+	int status();
 	boost::python::list received();
 	bool wait(uint16_t timeout);
+	bool wait_locked(uint16_t timeout=5 * MAX_WAIT_FOR_PACKET);
 	void notify(uint8_t status);
 
 private:
+	bool _complete;
 	uint8_t _status;
 	boost::python::list _data;
 	Event _event;
@@ -101,6 +107,9 @@ public:
 			bool do_connect=true, std::string device="hci0");
 	virtual ~GATTRequester();
 
+	virtual void on_connect(int mtu) { }
+	virtual void on_connect_failed(int code) { }
+	virtual void on_disconnect() { }
 	virtual void on_notification(const uint16_t handle, const std::string data);
 	virtual void on_indication(const uint16_t handle, const std::string data);
 
