@@ -179,6 +179,14 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         GATTRequester::discover_characteristics_async, 1, 4)
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
+        GATTRequester_discover_descriptors_overloads,
+        GATTRequester::discover_descriptors, 0, 3)
+
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
+        GATTRequester_discover_descriptors_async_overloads,
+        GATTRequester::discover_descriptors_async, 1, 4)
+
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(
         GATTResponse_wait_overloads,
         GATTResponse::wait_locked, 0, 1)
 
@@ -272,6 +280,10 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("on_connect_failed", &GATTRequesterCb::default_on_connect_failed)
         .def("disconnect", &GATTRequester::disconnect)
         .def("on_disconnect", &GATTRequesterCb::default_on_disconnect)
+        .def("update_connection_parameters", boost::python::raw_function(GATTRequester::update_connection_parameters_kwarg,1))
+        .def("exchange_mtu", &GATTRequester::exchange_mtu)
+        .def("exchange_mtu_async", &GATTRequester::exchange_mtu_async)
+        .def("set_mtu", &GATTRequester::set_mtu)
         .def("read_by_handle", &GATTRequester::read_by_handle)
         .def("read_by_handle_async", &GATTRequester::read_by_handle_async)
         .def("read_by_uuid", &GATTRequester::read_by_uuid)
@@ -279,18 +291,28 @@ BOOST_PYTHON_MODULE(gattlib) {
         .def("write_by_handle", &GATTRequester::write_by_handle)
         .def("write_by_handle_async", &GATTRequester::write_by_handle_async)
         .def("write_cmd", &GATTRequester::write_cmd)
+        .def("enable_notifications", &GATTRequester::enable_notifications)
+        .def("enable_notifications_async", &GATTRequester::enable_notifications_async)
         .def("on_notification", &GATTRequesterCb::default_on_notification)
         .def("on_indication", &GATTRequesterCb::default_on_indication)
         .def("discover_primary", &GATTRequester::discover_primary,
                 "returns a list with of primary services,"
                 " with their handles and UUIDs.")
         .def("discover_primary_async", &GATTRequester::discover_primary_async)
+        .def("find_included", &GATTRequester::find_included)
+        .def("find_included_async", &GATTRequester::find_included_async)
         .def("discover_characteristics",
                 &GATTRequester::discover_characteristics,
                 GATTRequester_discover_characteristics_overloads())
         .def("discover_characteristics_async",
                 &GATTRequester::discover_characteristics_async,
-                GATTRequester_discover_characteristics_async_overloads());
+                GATTRequester_discover_characteristics_async_overloads())
+        .def("discover_descriptors",
+                &GATTRequester::discover_descriptors,
+                GATTRequester_discover_descriptors_overloads())
+        .def("discover_descriptors_async",
+                &GATTRequester::discover_descriptors_async,
+                GATTRequester_discover_descriptors_async_overloads());
 
     register_ptr_to_python<GATTResponse*>();
 
