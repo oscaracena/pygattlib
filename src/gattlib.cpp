@@ -314,6 +314,7 @@ GATTRequester::connect(
 
     if (_channel == NULL) {
         _state = STATE_DISCONNECTED;
+        decref();
 
         std::string msg(gerr->message);
         int ecode = gerr->code;
