@@ -33,7 +33,9 @@ public:
 	void operator()();
 
 private:
+	GMainContext* context;
 	GMainLoop* event_loop;
+	Event start_event;
 };
 
 class BTIOException : public std::runtime_error

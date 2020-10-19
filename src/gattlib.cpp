@@ -53,7 +53,8 @@ IOService::start() {
         PyEval_InitThreads();
     }
 
-    boost::thread iothread(*this);
+    boost::thread iothread(std::bind(&IOService::operator(), this));
+    start_event.wait(10);
 }
 
 void
@@ -63,10 +64,17 @@ IOService::stop() {
 
 void
 IOService::operator()() {
-    event_loop = g_main_loop_new(NULL, FALSE);
+    context = g_main_context_new();
+    g_main_context_push_thread_default(context);
+    event_loop = g_main_loop_new(context, FALSE);
+    bt_io_set_context(context);
+    start_event.set();
 
     g_main_loop_run(event_loop);
     g_main_loop_unref(event_loop);
+    bt_io_set_context(NULL);
+    g_main_context_pop_thread_default(context);
+    g_main_context_unref(context);
 }
 
 static volatile IOService _instance(true);
@@ -323,7 +331,7 @@ GATTRequester::connect(
     }
 
     incref();
-    g_io_add_watch(_channel, G_IO_HUP, disconnect_cb, (gpointer)this);
+    x_g_io_add_watch(_channel, G_IO_HUP, disconnect_cb, (gpointer)this);
     if (wait) {
         PyThreadsGuard guard;
         check_channel();

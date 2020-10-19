@@ -223,13 +223,13 @@ static void attrib_destroy(GAttrib *attrib)
 	attrib->events = NULL;
 
 	if (attrib->timeout_watch > 0)
-		g_source_remove(attrib->timeout_watch);
+		x_g_source_remove(attrib->timeout_watch);
 
 	if (attrib->write_watch > 0)
-		g_source_remove(attrib->write_watch);
+		x_g_source_remove(attrib->write_watch);
 
 	if (attrib->read_watch > 0)
-		g_source_remove(attrib->read_watch);
+		x_g_source_remove(attrib->read_watch);
 
 	if (attrib->io)
 		g_io_channel_unref(attrib->io);
@@ -362,7 +362,7 @@ static gboolean can_write_data(GIOChannel *io, GIOCondition cond,
 	cmd->sent = true;
 
 	if (attrib->timeout_watch == 0)
-		attrib->timeout_watch = g_timeout_add_seconds(GATT_TIMEOUT,
+		attrib->timeout_watch = x_g_timeout_add_seconds(GATT_TIMEOUT,
 						disconnect_timeout, attrib);
 
 	return FALSE;
@@ -382,7 +382,7 @@ static void wake_up_sender(struct _GAttrib *attrib)
 		return;
 
 	attrib = g_attrib_ref(attrib);
-	attrib->write_watch = g_io_add_watch_full(attrib->io,
+	attrib->write_watch = x_g_io_add_watch_full(attrib->io,
 				G_PRIORITY_DEFAULT, G_IO_OUT,
 				can_write_data, attrib, destroy_sender);
 }
@@ -454,7 +454,7 @@ static gboolean received_data(GIOChannel *io, GIOCondition cond, gpointer data)
 		return TRUE;
 
 	if (attrib->timeout_watch > 0) {
-		g_source_remove(attrib->timeout_watch);
+		x_g_source_remove(attrib->timeout_watch);
 		attrib->timeout_watch = 0;
 	}
 
@@ -509,7 +509,7 @@ GAttrib *g_attrib_new(GIOChannel *io, guint16 mtu)
 	attrib->requests = g_queue_new();
 	attrib->responses = g_queue_new();
 
-	attrib->read_watch = g_io_add_watch(attrib->io,
+	attrib->read_watch = x_g_io_add_watch(attrib->io,
 			G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_NVAL,
 			received_data, attrib);
 
