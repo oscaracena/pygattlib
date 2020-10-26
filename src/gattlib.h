@@ -175,6 +175,24 @@ private:
 	int _hci_socket;
 	GIOChannel* _channel;
 	GAttrib* _attrib;
+	class AttribLocker : public _GAttribLock
+	{
+	public:
+		AttribLocker()
+		{
+			lockfn = &slock;
+			unlockfn = &sunlock;
+		}
+		static void slock(struct _GAttribLock *lk)
+		{
+			((AttribLocker*)lk)->_mutex.lock();
+		}
+		static void sunlock(struct _GAttribLock *lk)
+		{
+			((AttribLocker*)lk)->_mutex.unlock();
+		}
+		boost::mutex _mutex;
+	} attriblocker;
 	Event _ready;
 };
 

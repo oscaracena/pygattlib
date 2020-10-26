@@ -332,7 +332,7 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     else if (cid == ATT_CID)
         mtu = ATT_DEFAULT_LE_MTU;
 
-    request->_attrib = g_attrib_new(channel, mtu);
+    request->_attrib = g_attrib_withlock_new(channel, mtu, &request->attriblocker);
 
     request->incref();
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY,
