@@ -47,6 +47,7 @@
 struct _GAttrib {
 	GIOChannel *io;
 	int refs;
+	struct _GAttribLock *lk;
 	uint8_t *buf;
 	size_t buflen;
 	guint read_watch;
@@ -168,6 +169,9 @@ static bool is_request(guint8 opcode)
 	return false;
 }
 
+#define ALOCK(attrib) do { if (attrib->lk) (attrib->lk->lockfn)(attrib->lk); } while (0)
+#define AUNLOCK(attrib) do { if (attrib->lk) (attrib->lk->unlockfn)(attrib->lk); } while (0)
+
 GAttrib *g_attrib_ref(GAttrib *attrib)
 {
 	int refs;
@@ -286,23 +290,32 @@ static gboolean disconnect_timeout(gpointer data)
 
 	g_attrib_ref(attrib);
 
+        ALOCK(attrib);
+
 	c = g_queue_pop_head(attrib->requests);
 	if (c == NULL)
 		goto done;
+
+        AUNLOCK(attrib);
 
 	if (c->func)
 		c->func(ATT_ECODE_TIMEOUT, NULL, 0, c->user_data);
 
 	command_destroy(c);
 
+        ALOCK(attrib);
+
 	while ((c = g_queue_pop_head(attrib->requests))) {
+                AUNLOCK(attrib);
 		if (c->func)
 			c->func(ATT_ECODE_ABORTED, NULL, 0, c->user_data);
 		command_destroy(c);
+                ALOCK(attrib);
 	}
 
 done:
 	attrib->stale = true;
+        AUNLOCK(attrib);
 
 	g_attrib_unref(attrib);
 
@@ -319,11 +332,13 @@ static gboolean can_write_data(GIOChannel *io, GIOCondition cond,
 	GIOStatus iostat;
 	GQueue *queue;
 
+        ALOCK(attrib);
+
 	if (attrib->stale)
-		return FALSE;
+		goto done;
 
 	if (cond & (G_IO_HUP | G_IO_ERR | G_IO_NVAL))
-		return FALSE;
+		goto done;
 
 	queue = attrib->responses;
 	cmd = g_queue_peek_head(queue);
@@ -332,14 +347,14 @@ static gboolean can_write_data(GIOChannel *io, GIOCondition cond,
 		cmd = g_queue_peek_head(queue);
 	}
 	if (cmd == NULL)
-		return FALSE;
+		goto done;
 
 	/*
 	 * Verify that we didn't already send this command. This can only
 	 * happen with elementes from attrib->requests.
 	 */
 	if (cmd->sent)
-		return FALSE;
+		goto done;
 
 	iostat = g_io_channel_write_chars(io, (char *) cmd->pdu, cmd->len,
 								&len, &gerr);
@@ -349,11 +364,12 @@ static gboolean can_write_data(GIOChannel *io, GIOCondition cond,
 			g_error_free(gerr);
 		}
 
-		return FALSE;
+		goto done;
 	}
 
 	if (cmd->expected == 0) {
 		g_queue_pop_head(queue);
+                AUNLOCK(attrib);
 		command_destroy(cmd);
 
 		return TRUE;
@@ -365,6 +381,8 @@ static gboolean can_write_data(GIOChannel *io, GIOCondition cond,
 		attrib->timeout_watch = x_g_timeout_add_seconds(GATT_TIMEOUT,
 						disconnect_timeout, attrib);
 
+done:
+        AUNLOCK(attrib);
 	return FALSE;
 }
 
@@ -372,19 +390,24 @@ static void destroy_sender(gpointer data)
 {
 	struct _GAttrib *attrib = data;
 
+        ALOCK(attrib);
 	attrib->write_watch = 0;
+        AUNLOCK(attrib);
 	g_attrib_unref(attrib);
 }
 
 static void wake_up_sender(struct _GAttrib *attrib)
 {
+        ALOCK(attrib);
 	if (attrib->write_watch > 0)
-		return;
+		goto done;
 
 	attrib = g_attrib_ref(attrib);
 	attrib->write_watch = x_g_io_add_watch_full(attrib->io,
 				G_PRIORITY_DEFAULT, G_IO_OUT,
 				can_write_data, attrib, destroy_sender);
+done:
+        AUNLOCK(attrib);
 }
 
 static bool match_event(struct event *evt, const uint8_t *pdu, gsize len)
@@ -416,22 +439,28 @@ static gboolean received_data(GIOChannel *io, GIOCondition cond, gpointer data)
 	uint8_t buf[512], status;
 	gsize len;
 	GIOStatus iostat;
+        gboolean rv = FALSE;
+        gboolean needwake = FALSE;
+
+        ALOCK(attrib);
 
 	if (attrib->stale)
-		return FALSE;
+		goto notdone;
 
 	if (cond & (G_IO_HUP | G_IO_ERR | G_IO_NVAL)) {
 		struct command *c;
 
 		while ((c = g_queue_pop_head(attrib->requests))) {
+                        AUNLOCK(attrib);
 			if (c->func)
 				c->func(ATT_ECODE_IO, NULL, 0, c->user_data);
 			command_destroy(c);
+                        ALOCK(attrib);
 		}
 
 		attrib->read_watch = 0;
 
-		return FALSE;
+		goto notdone;
 	}
 
 	memset(buf, 0, sizeof(buf));
@@ -450,8 +479,10 @@ static gboolean received_data(GIOChannel *io, GIOCondition cond, gpointer data)
 			evt->func(buf, len, evt->user_data);
 	}
 
-	if (!is_response(buf[0]))
-		return TRUE;
+	if (!is_response(buf[0])) {
+                rv = TRUE;
+                goto notdone;
+        }
 
 	if (attrib->timeout_watch > 0) {
 		x_g_source_remove(attrib->timeout_watch);
@@ -461,7 +492,8 @@ static gboolean received_data(GIOChannel *io, GIOCondition cond, gpointer data)
 	cmd = g_queue_pop_head(attrib->requests);
 	if (cmd == NULL) {
 		/* Keep the watch if we have events to report */
-		return attrib->events != NULL;
+		rv = attrib->events != NULL;
+                goto notdone;
 	}
 
 	if (buf[0] == ATT_OP_ERROR) {
@@ -477,8 +509,12 @@ static gboolean received_data(GIOChannel *io, GIOCondition cond, gpointer data)
 	status = 0;
 
 done:
-	if (!g_queue_is_empty(attrib->requests) ||
-					!g_queue_is_empty(attrib->responses))
+        needwake = !g_queue_is_empty(attrib->requests) ||
+                !g_queue_is_empty(attrib->responses);
+
+        AUNLOCK(attrib);
+
+        if (needwake)
 		wake_up_sender(attrib);
 
 	if (cmd) {
@@ -489,9 +525,18 @@ done:
 	}
 
 	return TRUE;
+
+notdone:
+        AUNLOCK(attrib);
+        return rv;
 }
 
 GAttrib *g_attrib_new(GIOChannel *io, guint16 mtu)
+{
+  return g_attrib_withlock_new(io, mtu, NULL);
+}
+
+GAttrib *g_attrib_withlock_new(GIOChannel *io, guint16 mtu, struct _GAttribLock *lk)
 {
 	struct _GAttrib *attrib;
 
@@ -502,6 +547,7 @@ GAttrib *g_attrib_new(GIOChannel *io, guint16 mtu)
 	if (attrib == NULL)
 		return NULL;
 
+        attrib->lk = lk;
 	attrib->buf = g_malloc0(mtu);
 	attrib->buflen = mtu;
 
@@ -509,9 +555,13 @@ GAttrib *g_attrib_new(GIOChannel *io, guint16 mtu)
 	attrib->requests = g_queue_new();
 	attrib->responses = g_queue_new();
 
+        ALOCK(attrib);
+
 	attrib->read_watch = x_g_io_add_watch(attrib->io,
 			G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_NVAL,
 			received_data, attrib);
+
+        AUNLOCK(attrib);
 
 	return g_attrib_ref(attrib);
 }
@@ -523,13 +573,17 @@ guint g_attrib_send(GAttrib *attrib, guint id, const guint8 *pdu, guint16 len,
 	struct command *c;
 	GQueue *queue;
 	uint8_t opcode;
+        guint rv = 0;
+        gboolean needwake = FALSE;
+
+        ALOCK(attrib);
 
 	if (attrib->stale)
-		return 0;
+		goto done;
 
 	c = g_try_new0(struct command, 1);
 	if (c == NULL)
-		return 0;
+		goto done;
 
 	opcode = pdu[0];
 
@@ -564,10 +618,17 @@ guint g_attrib_send(GAttrib *attrib, guint id, const guint8 *pdu, guint16 len,
 	 * the sender. If the sender was already woken up by the second queue,
 	 * wake_up_sender will just return.
 	 */
-	if (g_queue_get_length(queue) == 1)
-		wake_up_sender(attrib);
+	needwake = (g_queue_get_length(queue) == 1);
 
-	return c->id;
+	rv = c->id;
+
+done:
+        AUNLOCK(attrib);
+
+        if (needwake)
+                wake_up_sender(attrib);
+
+        return rv;
 }
 
 static int command_cmp_by_id(gconstpointer a, gconstpointer b)
@@ -587,6 +648,8 @@ gboolean g_attrib_cancel(GAttrib *attrib, guint id)
 	if (attrib == NULL)
 		return FALSE;
 
+        ALOCK(attrib);
+
 	queue = attrib->requests;
 	if (queue)
 		l = g_queue_find_custom(queue, GUINT_TO_POINTER(id),
@@ -594,27 +657,33 @@ gboolean g_attrib_cancel(GAttrib *attrib, guint id)
 	if (l == NULL) {
 		queue = attrib->responses;
 		if (!queue)
-			return FALSE;
+			goto done;
 		l = g_queue_find_custom(queue, GUINT_TO_POINTER(id),
 					command_cmp_by_id);
 	}
 
 	if (l == NULL)
-		return FALSE;
+		goto done;
 
 	cmd = l->data;
 
-	if (cmd == g_queue_peek_head(queue) && cmd->sent)
+	if (cmd == g_queue_peek_head(queue) && cmd->sent) {
 		cmd->func = NULL;
-	else {
+                AUNLOCK(attrib);
+	} else {
 		g_queue_remove(queue, cmd);
+                AUNLOCK(attrib);
 		command_destroy(cmd);
 	}
 
 	return TRUE;
+
+done:
+        AUNLOCK(attrib);
+        return FALSE;
 }
 
-static gboolean cancel_all_per_queue(GQueue *queue)
+static gboolean cancel_all_per_queue(GAttrib *attrib, GQueue *queue)
 {
 	struct command *c, *head = NULL;
 	gboolean first = TRUE;
@@ -631,7 +700,9 @@ static gboolean cancel_all_per_queue(GQueue *queue)
 		}
 
 		first = FALSE;
+                AUNLOCK(attrib);
 		command_destroy(c);
+                ALOCK(attrib);
 	}
 
 	if (head) {
@@ -649,8 +720,10 @@ gboolean g_attrib_cancel_all(GAttrib *attrib)
 	if (attrib == NULL)
 		return FALSE;
 
-	ret = cancel_all_per_queue(attrib->requests);
-	ret = cancel_all_per_queue(attrib->responses) && ret;
+        ALOCK(attrib);
+	ret = cancel_all_per_queue(attrib, attrib->requests);
+	ret = cancel_all_per_queue(attrib, attrib->responses) && ret;
+        AUNLOCK(attrib);
 
 	return ret;
 }

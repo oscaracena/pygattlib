@@ -34,6 +34,11 @@ extern "C" {
 struct _GAttrib;
 typedef struct _GAttrib GAttrib;
 
+struct _GAttribLock {
+  void (*lockfn)(struct _GAttribLock *l);
+  void (*unlockfn)(struct _GAttribLock *l);
+};
+
 typedef void (*GAttribResultFunc) (guint8 status, const guint8 *pdu,
 					guint16 len, gpointer user_data);
 typedef void (*GAttribDisconnectFunc)(gpointer user_data);
@@ -42,6 +47,7 @@ typedef void (*GAttribNotifyFunc)(const guint8 *pdu, guint16 len,
 							gpointer user_data);
 
 GAttrib *g_attrib_new(GIOChannel *io, guint16 mtu);
+GAttrib *g_attrib_withlock_new(GIOChannel *io, guint16 mtu, struct _GAttribLock *lk);
 GAttrib *g_attrib_ref(GAttrib *attrib);
 void g_attrib_unref(GAttrib *attrib);
 
