@@ -100,7 +100,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='gattlib',
-    version="0.20200929",
+    version="0.20201113",
     description="Library to access Bluetooth LE devices",
     long_description=long_description,
     long_description_content_type="text/markdown",
