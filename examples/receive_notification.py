@@ -1,4 +1,4 @@
-#!/usr/bin/python -u
+#!/usr/bin/python3 -u
 # -*- mode: python; coding: utf-8 -*-
 
 # Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>

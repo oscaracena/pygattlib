@@ -55,11 +55,7 @@ You should install the needed packages, which are described on `DEPENDS`
 file. Take special care about versions: libbluetooth-dev should be
 4.101 or greater. Then, just type:
 
-    make
-
-Then, to install, just:
-
-    make install
+    ./setup.py install --user
 
 
 Usage
