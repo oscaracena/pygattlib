@@ -475,8 +475,11 @@ static gboolean received_data(GIOChannel *io, GIOCondition cond, gpointer data)
 	for (l = attrib->events; l; l = l->next) {
 		struct event *evt = l->data;
 
-		if (match_event(evt, buf, len))
+		if (match_event(evt, buf, len)) {
+			AUNLOCK(attrib);
 			evt->func(buf, len, evt->user_data);
+			ALOCK(attrib);
+		}
 	}
 
 	if (!is_response(buf[0])) {
