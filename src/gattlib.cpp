@@ -311,7 +311,6 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
 
         request->_state = GATTRequester::STATE_ERROR_CONNECTING;
         request->on_connect_failed(err->code);
-        g_error_free(err);
         request->decref();
         return;
     }
