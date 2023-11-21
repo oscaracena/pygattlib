@@ -96,10 +96,6 @@ IOService::IOService(bool run) {
 
 void
 IOService::start() {
-    if (!PyEval_ThreadsInitialized()) {
-        PyEval_InitThreads();
-    }
-
     boost::thread iothread(std::bind(&IOService::operator(), this));
     start_event.wait(10);
 }
