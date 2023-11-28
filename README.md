@@ -34,7 +34,7 @@ Python pip
 
 First, you need to install the depends. In Debian/Ubuntu this will be something like:
 
-    sudo apt install pkg-config libboost-python-dev libboost-thread-dev libbluetooth-dev libglib2.0-dev python-dev
+    sudo apt install pkg-config libboost-python-dev libboost-thread-dev libbluetooth-dev libglib2.0-dev python3-dev
 
 Now, install as ever:
 

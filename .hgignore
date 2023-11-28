@@ -1,7 +1,0 @@
-syntax: glob
-
-*.pyc
-*.o
-*.so
-*~
-.vscode

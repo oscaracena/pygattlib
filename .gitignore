@@ -6,3 +6,4 @@ build
 .vscode
 *.so
 *.egg-info
+dist
