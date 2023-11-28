@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  *
  *  BlueZ - Bluetooth protocol stack for Linux
  *
  *  Copyright (C) 2012-2014  Intel Corporation. All rights reserved.
  *
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License as published by the Free Software Foundation; either
- *  version 2.1 of the License, or (at your option) any later version.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -33,8 +20,14 @@
 #include "src/shared/util.h"
 #include "src/shared/crypto.h"
 
-#ifndef PF_ALG
+#ifndef HAVE_LINUX_IF_ALG_H
+#ifndef HAVE_LINUX_TYPES_H
+typedef uint8_t __u8;
+typedef uint16_t __u16;
+typedef uint32_t __u32;
+#else
 #include <linux/types.h>
+#endif
 
 struct sockaddr_alg {
 	__u16   salg_family;
@@ -65,6 +58,11 @@ struct af_alg_iv {
 #ifndef SOL_ALG
 #define SOL_ALG		279
 #endif
+
+/* Maximum message length that can be passed to aes_cmac */
+#define CMAC_MSG_MAX	80
+
+#define ATT_SIGN_LEN	12
 
 struct bt_crypto {
 	int ref_count;
@@ -128,36 +126,40 @@ static int cmac_aes_setup(void)
 	return fd;
 }
 
+static struct bt_crypto *singleton;
+
 struct bt_crypto *bt_crypto_new(void)
 {
-	struct bt_crypto *crypto;
+	if (singleton)
+		return bt_crypto_ref(singleton);
 
-	crypto = new0(struct bt_crypto, 1);
-	if (!crypto)
-		return NULL;
+	singleton = new0(struct bt_crypto, 1);
 
-	crypto->ecb_aes = ecb_aes_setup();
-	if (crypto->ecb_aes < 0) {
-		free(crypto);
-		return NULL;
-	}
-
-	crypto->urandom = urandom_setup();
-	if (crypto->urandom < 0) {
-		close(crypto->ecb_aes);
-		free(crypto);
+	singleton->ecb_aes = ecb_aes_setup();
+	if (singleton->ecb_aes < 0) {
+		free(singleton);
+		singleton = NULL;
 		return NULL;
 	}
 
-	crypto->cmac_aes = cmac_aes_setup();
-	if (crypto->cmac_aes < 0) {
-		close(crypto->urandom);
-		close(crypto->ecb_aes);
-		free(crypto);
+	singleton->urandom = urandom_setup();
+	if (singleton->urandom < 0) {
+		close(singleton->ecb_aes);
+		free(singleton);
+		singleton = NULL;
 		return NULL;
 	}
 
-	return bt_crypto_ref(crypto);
+	singleton->cmac_aes = cmac_aes_setup();
+	if (singleton->cmac_aes < 0) {
+		close(singleton->urandom);
+		close(singleton->ecb_aes);
+		free(singleton);
+		singleton = NULL;
+		return NULL;
+	}
+
+	return bt_crypto_ref(singleton);
 }
 
 struct bt_crypto *bt_crypto_ref(struct bt_crypto *crypto)
@@ -183,10 +185,11 @@ void bt_crypto_unref(struct bt_crypto *crypto)
 	close(crypto->cmac_aes);
 
 	free(crypto);
+	singleton = NULL;
 }
 
 bool bt_crypto_random_bytes(struct bt_crypto *crypto,
-					uint8_t *buf, uint8_t num_bytes)
+					void *buf, uint8_t num_bytes)
 {
 	ssize_t len;
 
@@ -258,7 +261,8 @@ static inline void swap_buf(const uint8_t *src, uint8_t *dst, uint16_t len)
 
 bool bt_crypto_sign_att(struct bt_crypto *crypto, const uint8_t key[16],
 				const uint8_t *m, uint16_t m_len,
-				uint32_t sign_cnt, uint8_t signature[12])
+				uint32_t sign_cnt,
+				uint8_t signature[ATT_SIGN_LEN])
 {
 	int fd;
 	int len;
@@ -312,10 +316,31 @@ bool bt_crypto_sign_att(struct bt_crypto *crypto, const uint8_t key[16],
 	 * 12 octets
 	 */
 	swap_buf(out, tmp, 16);
-	memcpy(signature, tmp + 4, 12);
+	memcpy(signature, tmp + 4, ATT_SIGN_LEN);
 
 	return true;
 }
+
+bool bt_crypto_verify_att_sign(struct bt_crypto *crypto, const uint8_t key[16],
+				const uint8_t *pdu, uint16_t pdu_len)
+{
+	uint8_t generated_sign[ATT_SIGN_LEN];
+	const uint8_t *sign;
+	uint32_t sign_cnt;
+
+	if (pdu_len < ATT_SIGN_LEN)
+		return false;
+
+	sign = pdu + pdu_len - ATT_SIGN_LEN;
+	sign_cnt = get_le32(sign);
+
+	if (!bt_crypto_sign_att(crypto, key, pdu, pdu_len - ATT_SIGN_LEN,
+						sign_cnt, generated_sign))
+		return false;
+
+	return memcmp(generated_sign, sign, ATT_SIGN_LEN) == 0;
+}
+
 /*
  * Security function e
  *
@@ -559,4 +584,385 @@ bool bt_crypto_s1(struct bt_crypto *crypto, const uint8_t k[16],
 	memcpy(res + 8, r1, 8);
 
 	return bt_crypto_e(crypto, k, res, res);
+}
+
+static bool aes_cmac_be(struct bt_crypto *crypto, const uint8_t key[16],
+			const uint8_t *msg, size_t msg_len, uint8_t res[16])
+{
+	ssize_t len;
+	int fd;
+
+	if (msg_len > CMAC_MSG_MAX)
+		return false;
+
+	fd = alg_new(crypto->cmac_aes, key, 16);
+	if (fd < 0)
+		return false;
+
+	len = send(fd, msg, msg_len, 0);
+	if (len < 0) {
+		close(fd);
+		return false;
+	}
+
+	len = read(fd, res, 16);
+	if (len < 0) {
+		close(fd);
+		return false;
+	}
+
+	close(fd);
+
+	return true;
+}
+
+static bool aes_cmac(struct bt_crypto *crypto, const uint8_t key[16],
+			const uint8_t *msg, size_t msg_len, uint8_t res[16])
+{
+	uint8_t key_msb[16], out[16], msg_msb[CMAC_MSG_MAX];
+
+	if (msg_len > CMAC_MSG_MAX)
+		return false;
+
+	swap_buf(key, key_msb, 16);
+	swap_buf(msg, msg_msb, msg_len);
+
+	if (!aes_cmac_be(crypto, key_msb, msg_msb, msg_len, out))
+		return false;
+
+	swap_buf(out, res, 16);
+
+	return true;
+}
+
+bool bt_crypto_f4(struct bt_crypto *crypto, uint8_t u[32], uint8_t v[32],
+				uint8_t x[16], uint8_t z, uint8_t res[16])
+{
+	uint8_t m[65];
+
+	if (!crypto)
+		return false;
+
+	m[0] = z;
+	memcpy(&m[1], v, 32);
+	memcpy(&m[33], u, 32);
+
+	return aes_cmac(crypto, x, m, sizeof(m), res);
+}
+
+bool bt_crypto_f5(struct bt_crypto *crypto, uint8_t w[32], uint8_t n1[16],
+				uint8_t n2[16], uint8_t a1[7], uint8_t a2[7],
+				uint8_t mackey[16], uint8_t ltk[16])
+{
+	uint8_t btle[4] = { 0x65, 0x6c, 0x74, 0x62 };
+	uint8_t salt[16] = { 0xbe, 0x83, 0x60, 0x5a, 0xdb, 0x0b, 0x37, 0x60,
+			     0x38, 0xa5, 0xf5, 0xaa, 0x91, 0x83, 0x88, 0x6c };
+	uint8_t length[2] = { 0x00, 0x01 };
+	uint8_t m[53], t[16];
+
+	if (!aes_cmac(crypto, salt, w, 32, t))
+		return false;
+
+	memcpy(&m[0], length, 2);
+	memcpy(&m[2], a2, 7);
+	memcpy(&m[9], a1, 7);
+	memcpy(&m[16], n2, 16);
+	memcpy(&m[32], n1, 16);
+	memcpy(&m[48], btle, 4);
+
+	m[52] = 0; /* Counter */
+	if (!aes_cmac(crypto, t, m, sizeof(m), mackey))
+		return false;
+
+	m[52] = 1; /* Counter */
+	return aes_cmac(crypto, t, m, sizeof(m), ltk);
+}
+
+bool bt_crypto_f6(struct bt_crypto *crypto, uint8_t w[16], uint8_t n1[16],
+			uint8_t n2[16], uint8_t r[16], uint8_t io_cap[3],
+			uint8_t a1[7], uint8_t a2[7], uint8_t res[16])
+{
+	uint8_t m[65];
+
+	memcpy(&m[0], a2, 7);
+	memcpy(&m[7], a1, 7);
+	memcpy(&m[14], io_cap, 3);
+	memcpy(&m[17], r, 16);
+	memcpy(&m[33], n2, 16);
+	memcpy(&m[49], n1, 16);
+
+	return aes_cmac(crypto, w, m, sizeof(m), res);
+}
+
+bool bt_crypto_g2(struct bt_crypto *crypto, uint8_t u[32], uint8_t v[32],
+				uint8_t x[16], uint8_t y[16], uint32_t *val)
+{
+	uint8_t m[80], tmp[16];
+
+	memcpy(&m[0], y, 16);
+	memcpy(&m[16], v, 32);
+	memcpy(&m[48], u, 32);
+
+	if (!aes_cmac(crypto, x, m, sizeof(m), tmp))
+		return false;
+
+	*val = get_le32(tmp);
+	*val %= 1000000;
+
+	return true;
+}
+
+bool bt_crypto_h6(struct bt_crypto *crypto, const uint8_t w[16],
+				const uint8_t keyid[4], uint8_t res[16])
+{
+	if (!aes_cmac(crypto, w, keyid, 4, res))
+		return false;
+
+	return true;
+}
+
+bool bt_crypto_gatt_hash(struct bt_crypto *crypto, struct iovec *iov,
+				size_t iov_len, uint8_t res[16])
+{
+	const uint8_t key[16] = {};
+	ssize_t len;
+	int fd;
+
+	if (!crypto)
+		return false;
+
+	fd = alg_new(crypto->cmac_aes, key, 16);
+	if (fd < 0)
+		return false;
+
+	len = writev(fd, iov, iov_len);
+	if (len < 0) {
+		close(fd);
+		return false;
+	}
+
+	len = read(fd, res, 16);
+	if (len < 0) {
+		close(fd);
+		return false;
+	}
+
+	close(fd);
+
+	return true;
+}
+
+/*
+ * Resolvable Set Identifier hash function sih
+ *
+ * The RSI hash function sih is used to generate a hash value that is used in
+ * RSIs.
+ *
+ * The following variables are the inputs to the RSI hash function sih:
+ *
+ *   k is 128 bits
+ *   r is 24 bits
+ *   padding is 104 bits, all set to 0
+ *
+ * r is concatenated with padding to generate r', which is used as the 128-bit
+ * input parameter plaintextData to security function e:
+ *
+ *   r'=padding||r
+ *
+ * The LSO of r becomes the LSO of r', and the MSO of padding becomes the MSO
+ * of r'.
+ *
+ * For example, if the 24-bit value r is 0x3A98B5, then r' is
+ * 0x000000000000000000000000003A98B5.
+ *
+ * The output of the Resolvable Set Identifier function sih is:
+ *
+ *   sih(k, r)=e(k, r') mod 2^24
+ *
+ * The output of the security function e is truncated to 24 bits by taking the
+ * least significant 24 bits of the output of e as the result of sih.
+ */
+bool bt_crypto_sih(struct bt_crypto *crypto, const uint8_t k[16],
+					const uint8_t r[3], uint8_t hash[3])
+{
+	return bt_crypto_ah(crypto, k, r, hash);
+}
+
+static bool aes_cmac_zero(struct bt_crypto *crypto, const uint8_t *msg,
+					size_t msg_len, uint8_t res[16])
+{
+	const uint8_t zero[16] = {};
+
+	return aes_cmac_be(crypto, zero, msg, msg_len, res);
+}
+
+/* The inputs to function s1 are:
+ *
+ *   M is a non-zero length octet array or ASCII encoded string
+ *
+ * If M is an ASCII encoded string, M shall be converted into an integer number
+ * by replacing each string character with its ASCII code preserving the order.
+ * For example, if M is the string “CSIS”, M is converted into the integer
+ * number: 0x4353 4953.
+ *
+ * ZERO is the 128-bit value:
+ *
+ *   0x0000 0000 0000 0000 0000 0000 0000 0000
+ *
+ * The output of the salt generation function s1 shall be calculated as follows:
+ *
+ *   s1(M)=AES‐CMACZERO(M)
+ *
+ * Where AES-CMACZERO is the CMAC function defined in Section 4.2.
+ */
+static bool sef_s1(struct bt_crypto *crypto, const uint8_t *m,
+					size_t m_len, uint8_t res[16])
+{
+	/* s1(M)=AES‐CMACZERO(M) */
+	return aes_cmac_zero(crypto, m, m_len, res);
+}
+
+/* The key derivation function k1 is used to derive a key. The derived key is
+ * used to encrypt and decrypt the value of the Set Identity Resolving Key
+ * characteristic (see Section 5.1).
+ *
+ * The definition of this key generation function uses the MAC function
+ * AES-CMACT with a 128-bit key T.
+ *
+ * The inputs to function k1 are:
+ *
+ *   N is 0 or more octets
+ *
+ *   SALT is 128 bits
+ *
+ *   P is 0 or more octets
+ *
+ * The key (T) shall be computed as follows:
+ *
+ *   T=AES‐CMACSALT(N)
+ *
+ * Where AES-CMACSALT is the CMAC function defined in Section 4.2.
+ *
+ * The output of the key generation function k1 shall be calculated as follows:
+ *
+ *   k1(N, SALT, P)=AES‐CMACT(P)
+ *
+ * Where AES-CMACT is the CMAC function defined in Section 4.2.
+ */
+static bool sef_k1(struct bt_crypto *crypto, const uint8_t n[16],
+				uint8_t salt[16], const uint8_t *p,
+				size_t p_len, uint8_t res[16])
+{
+	uint8_t res1[16];
+
+	/* T=AES‐CMACSALT(N) */
+	if (!aes_cmac_be(crypto, salt, n, 16, res1))
+		return false;
+
+	/* k1(N, SALT, P)=AES‐CMACT(P) */
+	return aes_cmac_be(crypto, res1, p, p_len, res);
+}
+
+/*
+ * SIRK encryption function sef
+ *
+ * The SIRK encryption function sef shall be used by the server to encrypt the
+ * SIRK with a key K. The value of K depends on the transport on which the Set
+ * Identity Resolving Key characteristic is read or notified.
+ *
+ * If the Set Identity Resolving Key characteristic is read or notified on the
+ * Basic Rate/Enhanced Data Rate (BR/EDR) transport, K shall be equal to the
+ * Link Key shared by the server and the client.
+ *
+ *   K=LinkKey
+ *
+ * If the Set Identity Resolving Key characteristic is read or notified on the
+ * Bluetooth Low Energy (LE) transport, K shall be equal to the LTK shared by
+ * the server and client. That is,
+ *
+ *   K=LTK
+ *
+ * The inputs to the function sef are:
+ *
+ *   K is the key defined above in this section
+ *
+ *   SIRK is the value of the SIRK to be encrypted
+ *
+ * The output of the SIRK encryption function sef is as follows:
+ *
+ *   sef(K, SIRK)=k1(K, s1(“SIRKenc”), “csis”)^SIRK
+ *
+ * Where ^ is the bitwise exclusive or operation.
+ */
+bool bt_crypto_sef(struct bt_crypto *crypto, const uint8_t k[16],
+			const uint8_t sirk[16], uint8_t out[16])
+{
+	const uint8_t m[] = {'S', 'I', 'R', 'K', 'e', 'n', 'c'};
+	const uint8_t p[] = {'c', 's', 'i', 's'};
+	uint8_t k_msb[16];
+	uint8_t salt[16];
+	uint8_t res_msb[16];
+	uint8_t res[16];
+
+	if (!crypto)
+		return false;
+
+	/* salt = s1(“SIRKenc”) */
+	if (!sef_s1(crypto, m, sizeof(m), salt))
+		return false;
+
+	/* Convert K to MSB/BE format */
+	swap_buf(k, k_msb, 16);
+
+	/* res_msb = k1(K, salt, “csis”) */
+	if (!sef_k1(crypto, k_msb, salt, p, sizeof(p), res_msb))
+		return false;
+
+	/* Convert back to LSB/LE format */
+	swap_buf(res_msb, res, 16);
+
+	/* res^SIRK */
+	u128_xor(res, sirk, out);
+
+	return true;
+}
+
+/* Generates a SIRK from a string using the following steps:
+ *  - Generate a hash (k) using the str as input
+ *  - Generate a hash (sirk) using vendor, product, version and source as input
+ *  - Encrypt sirk using k as LTK with sef function.
+ */
+bool bt_crypto_sirk(struct bt_crypto *crypto, const char *str, uint16_t vendor,
+			uint16_t product, uint16_t version, uint16_t source,
+			uint8_t sirk[16])
+{
+	struct iovec iov[4];
+	uint8_t k[16];
+	uint8_t sirk_plaintext[16];
+
+	if (!crypto)
+		return false;
+
+	iov[0].iov_base = (void *)str;
+	iov[0].iov_len = strlen(str);
+
+	/* Generate a k using the str as input */
+	if (!bt_crypto_gatt_hash(crypto, iov, 1, k))
+		return false;
+
+	iov[0].iov_base = &vendor;
+	iov[0].iov_len = sizeof(vendor);
+	iov[1].iov_base = &product;
+	iov[1].iov_len = sizeof(product);
+	iov[2].iov_base = &version;
+	iov[2].iov_len = sizeof(version);
+	iov[3].iov_base = &source;
+	iov[3].iov_len = sizeof(source);
+
+	/* Generate a sirk using vendor, product, version and source as input */
+	if (!bt_crypto_gatt_hash(crypto, iov, 4, sirk_plaintext))
+		return false;
+
+	/* Encrypt sirk using k as LTK with sef function */
+	return bt_crypto_sef(crypto, k, sirk_plaintext, sirk);
 }

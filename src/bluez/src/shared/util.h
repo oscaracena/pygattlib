@@ -1,30 +1,26 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  *
  *  BlueZ - Bluetooth protocol stack for Linux
  *
  *  Copyright (C) 2012-2014  Intel Corporation. All rights reserved.
+ *  Copyright 2023 NXP
  *
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License as published by the Free Software Foundation; either
- *  version 2.1 of the License, or (at your option) any later version.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <alloca.h>
 #include <byteswap.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define BIT(n)  (1 << (n))
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(val) (val)
@@ -57,18 +53,18 @@
 #endif
 
 #define get_unaligned(ptr)			\
-({						\
+__extension__ ({				\
 	struct __attribute__((packed)) {	\
-		typeof(*(ptr)) __v;		\
-	} *__p = (typeof(__p)) (ptr);		\
+		__typeof__(*(ptr)) __v;		\
+	} *__p = (__typeof__(__p)) (ptr);	\
 	__p->__v;				\
 })
 
 #define put_unaligned(val, ptr)			\
 do {						\
 	struct __attribute__((packed)) {	\
-		typeof(*(ptr)) __v;		\
-	} *__p = (typeof(__p)) (ptr);		\
+		__typeof__(*(ptr)) __v;		\
+	} *__p = (__typeof__(__p)) (ptr);	\
 	__p->__v = (val);			\
 } while (0)
 
@@ -78,11 +74,31 @@ do {						\
 #define PTR_TO_INT(p) ((int) ((intptr_t) (p)))
 #define INT_TO_PTR(u) ((void *) ((intptr_t) (u)))
 
-#define new0(t, n) ((t*) calloc((n), sizeof(t)))
+#define new0(type, count)			\
+	(type *) (__extension__ ({		\
+		size_t __n = (size_t) (count);	\
+		size_t __s = sizeof(type);	\
+		void *__p;			\
+		__p = util_malloc(__n * __s);	\
+		memset(__p, 0, __n * __s);	\
+		__p;				\
+	}))
+
 #define newa(t, n) ((t*) alloca(sizeof(t)*(n)))
 #define malloc0(n) (calloc((n), 1))
 
+char *strdelimit(char *str, char *del, char c);
+int strsuffix(const char *str, const char *suffix);
+char *strstrip(char *str);
+bool strisutf8(const char *str, size_t length);
+
+void *util_malloc(size_t size);
+void *util_memdup(const void *src, size_t size);
+
 typedef void (*util_debug_func_t)(const char *str, void *user_data);
+
+void util_debug_va(util_debug_func_t function, void *user_data,
+				const char *format, va_list va);
 
 void util_debug(util_debug_func_t function, void *user_data,
 						const char *format, ...)
@@ -93,14 +109,52 @@ void util_hexdump(const char dir, const unsigned char *buf, size_t len,
 
 unsigned char util_get_dt(const char *parent, const char *name);
 
-static inline void py_bswap_128(const void *src, void *dst)
-{
-	const uint8_t *s = src;
-	uint8_t *d = dst;
-	int i;
+ssize_t util_getrandom(void *buf, size_t buflen, unsigned int flags);
 
-	for (i = 0; i < 16; i++)
-		d[15 - i] = s[i];
+uint8_t util_get_uid(uint64_t *bitmap, uint8_t max);
+void util_clear_uid(uint64_t *bitmap, uint8_t id);
+
+struct iovec *util_iov_dup(const struct iovec *iov, size_t cnt);
+int util_iov_memcmp(const struct iovec *iov1, const struct iovec *iov2);
+void util_iov_memcpy(struct iovec *iov, void *src, size_t len);
+void *util_iov_push(struct iovec *iov, size_t len);
+void *util_iov_push_mem(struct iovec *iov, size_t len, const void *data);
+void *util_iov_push_le64(struct iovec *iov, uint64_t val);
+void *util_iov_push_be64(struct iovec *iov, uint64_t val);
+void *util_iov_push_le32(struct iovec *iov, uint32_t val);
+void *util_iov_push_be32(struct iovec *iov, uint32_t val);
+void *util_iov_push_le24(struct iovec *iov, uint32_t val);
+void *util_iov_push_be24(struct iovec *iov, uint32_t val);
+void *util_iov_push_le16(struct iovec *iov, uint16_t val);
+void *util_iov_push_be16(struct iovec *iov, uint16_t val);
+void *util_iov_push_u8(struct iovec *iov, uint8_t val);
+void *util_iov_pull(struct iovec *iov, size_t len);
+void *util_iov_pull_mem(struct iovec *iov, size_t len);
+void *util_iov_pull_le64(struct iovec *iov, uint64_t *val);
+void *util_iov_pull_be64(struct iovec *iov, uint64_t *val);
+void *util_iov_pull_le32(struct iovec *iov, uint32_t *val);
+void *util_iov_pull_be32(struct iovec *iov, uint32_t *val);
+void *util_iov_pull_le24(struct iovec *iov, uint32_t *val);
+void *util_iov_pull_be24(struct iovec *iov, uint32_t *val);
+void *util_iov_pull_le16(struct iovec *iov, uint16_t *val);
+void *util_iov_pull_be16(struct iovec *iov, uint16_t *val);
+void *util_iov_pull_u8(struct iovec *iov, uint8_t *val);
+void util_iov_free(struct iovec *iov, size_t cnt);
+
+const char *bt_uuid16_to_str(uint16_t uuid);
+const char *bt_uuid32_to_str(uint32_t uuid);
+const char *bt_uuid128_to_str(const uint8_t uuid[16]);
+const char *bt_uuidstr_to_str(const char *uuid);
+const char *bt_appear_to_str(uint16_t appearance);
+
+static inline int8_t get_s8(const void *ptr)
+{
+	return *((int8_t *) ptr);
+}
+
+static inline uint8_t get_u8(const void *ptr)
+{
+	return *((uint8_t *) ptr);
 }
 
 static inline uint16_t get_le16(const void *ptr)
@@ -111,6 +165,20 @@ static inline uint16_t get_le16(const void *ptr)
 static inline uint16_t get_be16(const void *ptr)
 {
 	return be16_to_cpu(get_unaligned((const uint16_t *) ptr));
+}
+
+static inline uint32_t get_le24(const void *ptr)
+{
+	const uint8_t *src = ptr;
+
+	return ((uint32_t)src[2] << 16) | get_le16(ptr);
+}
+
+static inline uint32_t get_be24(const void *ptr)
+{
+	const uint8_t *src = ptr;
+
+	return ((uint32_t)src[0] << 16) | get_be16(&src[1]);
 }
 
 static inline uint32_t get_le32(const void *ptr)
@@ -133,6 +201,11 @@ static inline uint64_t get_be64(const void *ptr)
 	return be64_to_cpu(get_unaligned((const uint64_t *) ptr));
 }
 
+static inline void put_u8(uint8_t val, void *dst)
+{
+	put_unaligned(val, (uint8_t *) dst);
+}
+
 static inline void put_le16(uint16_t val, void *dst)
 {
 	put_unaligned(cpu_to_le16(val), (uint16_t *) dst);
@@ -141,6 +214,18 @@ static inline void put_le16(uint16_t val, void *dst)
 static inline void put_be16(uint16_t val, const void *ptr)
 {
 	put_unaligned(cpu_to_be16(val), (uint16_t *) ptr);
+}
+
+static inline void put_le24(uint32_t val, void *ptr)
+{
+	put_le16(val, ptr);
+	put_unaligned(val >> 16, (uint8_t *) ptr + 2);
+}
+
+static inline void put_be24(uint32_t val, void *ptr)
+{
+	put_unaligned(val >> 16, (uint8_t *) ptr + 2);
+	put_be16(val, ptr + 1);
 }
 
 static inline void put_le32(uint32_t val, void *dst)

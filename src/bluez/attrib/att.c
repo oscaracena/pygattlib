@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  BlueZ - Bluetooth protocol stack for Linux
@@ -6,36 +7,22 @@
  *  Copyright (C) 2010  Marcel Holtmann <marcel@holtmann.org>
  *
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <bluetooth/bluetooth.h>
-
 #include <glib.h>
 
-#include "src/shared/util.h"
+#include "lib/bluetooth.h"
 #include "lib/uuid.h"
+
+#include "src/shared/util.h"
 #include "att.h"
 
 static inline void put_uuid_le(const bt_uuid_t *src, void *dst)
@@ -44,7 +31,7 @@ static inline void put_uuid_le(const bt_uuid_t *src, void *dst)
 		put_le16(src->value.u16, dst);
 	else
 		/* Convert from 128-bit BE to LE */
-		py_bswap_128(&src->value.u128, dst);
+		bswap_128(&src->value.u128, dst);
 }
 
 const char *att_ecode2str(uint8_t status)
@@ -138,7 +125,7 @@ static void get_uuid(uint8_t type, const void *val, bt_uuid_t *uuid)
 		uint128_t u128;
 
 		/* Convert from 128-bit LE to BE */
-		py_bswap_128(val, &u128);
+		bswap_128(val, &u128);
 		bt_uuid128_create(uuid, u128);
 	}
 }

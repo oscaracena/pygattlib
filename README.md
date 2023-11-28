@@ -105,7 +105,7 @@ Reading data
 
 First of all, you need to create a GATTRequester, passing the address
 of the device to connect to. Then, you can read a value defined by
-either by its handle or by its UUID. For example:
+either its handle or by its UUID. For example:
 
 ```python
 from gattlib import GATTRequester

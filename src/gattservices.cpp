@@ -9,6 +9,8 @@
 
 #include <exception>
 
+#include "btio/btio.h"
+
 #include "gattlib.h"
 #include "gattservices.h"
 

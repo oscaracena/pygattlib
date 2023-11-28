@@ -6,8 +6,8 @@
 
 from gattlib import BeaconService
 
-class Beacon(object):
 
+class Beacon(object):
     def __init__(self, data, address):
         self._uuid = data[0]
         self._major = data[1]
@@ -22,6 +22,7 @@ class Beacon(object):
                 .format(ADDR=self._address, UUID=self._uuid, MAJOR=self._major,
                         MINOR=self._minor, POWER=self._power, RSSI=self._rssi)
         return ret
+
 
 service = BeaconService("hci0")
 devices = service.scan(2)

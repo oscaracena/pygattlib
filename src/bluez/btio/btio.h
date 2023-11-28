@@ -1,48 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  *  BlueZ - Bluetooth protocol stack for Linux
  *
  *  Copyright (C) 2009-2010  Marcel Holtmann <marcel@holtmann.org>
  *  Copyright (C) 2009-2010  Nokia Corporation
+ *  Copyright 2023 NXP
  *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 #ifndef BT_IO_H
 #define BT_IO_H
 
 #include <glib.h>
-
-/* These glib overrides ensure that all our callbacks fire on the
- * correct thread. */
-void bt_io_set_context(GMainContext *c);
-guint x_g_io_add_watch(GIOChannel *channel,
-                       GIOCondition condition,
-                       GIOFunc func,
-                       gpointer user_data);
-guint x_g_io_add_watch_full(GIOChannel *channel,
-                            gint priority,
-                            GIOCondition condition,
-                            GIOFunc func,
-                            gpointer user_data,
-                            GDestroyNotify notify);
-guint x_g_timeout_add_seconds(guint interval,
-                              GSourceFunc function,
-                              gpointer data);
-gboolean x_g_source_remove(guint tag);
 
 #define BT_IO_ERROR bt_io_error_quark()
 
@@ -67,13 +37,19 @@ typedef enum {
 	BT_IO_OPT_MTU,
 	BT_IO_OPT_OMTU,
 	BT_IO_OPT_IMTU,
-	BT_IO_OPT_MASTER,
+	BT_IO_OPT_CENTRAL,
 	BT_IO_OPT_HANDLE,
 	BT_IO_OPT_CLASS,
 	BT_IO_OPT_MODE,
 	BT_IO_OPT_FLUSHABLE,
 	BT_IO_OPT_PRIORITY,
 	BT_IO_OPT_VOICE,
+	BT_IO_OPT_PHY,
+	BT_IO_OPT_QOS,
+	BT_IO_OPT_BASE,
+	BT_IO_OPT_ISO_BC_SID,
+	BT_IO_OPT_ISO_BC_NUM_BIS,
+	BT_IO_OPT_ISO_BC_BIS,
 } BtIOOption;
 
 typedef enum {
@@ -85,18 +61,44 @@ typedef enum {
 
 typedef enum {
 	BT_IO_MODE_BASIC = 0,
-	BT_IO_MODE_RETRANS,
-	BT_IO_MODE_FLOWCTL,
 	BT_IO_MODE_ERTM,
-	BT_IO_MODE_STREAMING
+	BT_IO_MODE_STREAMING,
+	BT_IO_MODE_LE_FLOWCTL,
+	BT_IO_MODE_EXT_FLOWCTL,
+	BT_IO_MODE_ISO
 } BtIOMode;
 
 typedef void (*BtIOConfirm)(GIOChannel *io, gpointer user_data);
 
 typedef void (*BtIOConnect)(GIOChannel *io, GError *err, gpointer user_data);
 
+/* These glib overrides ensure that all our callbacks fire on the
+ * correct thread. */
+void bt_io_set_context(GMainContext *c);
+
+guint x_g_io_add_watch(GIOChannel *channel,
+				GIOCondition condition,
+				GIOFunc func,
+				gpointer user_data);
+
+guint x_g_io_add_watch_full(GIOChannel *channel,
+				gint priority,
+				GIOCondition condition,
+				GIOFunc func,
+				gpointer user_data,
+				GDestroyNotify notify);
+
+guint x_g_timeout_add_seconds(guint interval,
+				GSourceFunc function,
+				gpointer data);
+gboolean x_g_source_remove(guint tag);
+
 gboolean bt_io_accept(GIOChannel *io, BtIOConnect connect, gpointer user_data,
 					GDestroyNotify destroy, GError **err);
+
+gboolean bt_io_bcast_accept(GIOChannel *io, BtIOConnect connect,
+				gpointer user_data, GDestroyNotify destroy,
+				GError **err);
 
 gboolean bt_io_set(GIOChannel *io, GError **err, BtIOOption opt1, ...);
 
@@ -109,17 +111,5 @@ GIOChannel *bt_io_connect(BtIOConnect connect, gpointer user_data,
 GIOChannel *bt_io_listen(BtIOConnect connect, BtIOConfirm confirm,
 				gpointer user_data, GDestroyNotify destroy,
 				GError **err, BtIOOption opt1, ...);
-
-/* Note: added tu support older versions of bluetooth-dev */
-#ifndef BT_VOICE
-#define BT_VOICE  11
-#define BT_SNDMTU 12
-#define BT_RCVMTU 13
-
-struct bt_voice {
-    uint16_t setting;
-};
-
-#endif /* BT_VOICE */
 
 #endif

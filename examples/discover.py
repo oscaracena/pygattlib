@@ -6,6 +6,7 @@
 
 from gattlib import DiscoveryService
 
+
 service = DiscoveryService("hci0")
 devices = service.discover(4)
 

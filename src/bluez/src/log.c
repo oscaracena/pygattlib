@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  BlueZ - Bluetooth protocol stack for Linux
@@ -5,75 +6,115 @@
  *  Copyright (C) 2004-2010  Marcel Holtmann <marcel@holtmann.org>
  *
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
+#define _GNU_SOURCE
 #include <stdio.h>
-#include <stdarg.h>
+#include <errno.h>
 #include <syslog.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
 
 #include <glib.h>
 
+#include "lib/bluetooth.h"
+#include "lib/hci.h"
+
+#include "src/shared/util.h"
+#include "src/shared/log.h"
 #include "log.h"
+
+#define LOG_IDENT "bluetoothd"
+
+static void monitor_log(uint16_t index, int priority,
+					const char *format, va_list ap)
+{
+	bt_log_vprintf(index, LOG_IDENT, priority, format, ap);
+}
 
 void info(const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
-
 	vsyslog(LOG_INFO, format, ap);
+	va_end(ap);
 
+	va_start(ap, format);
+	monitor_log(HCI_DEV_NONE, LOG_INFO, format, ap);
 	va_end(ap);
 }
 
-void warn(const char *format, ...)
+void btd_log(uint16_t index, int priority, const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
+	vsyslog(priority, format, ap);
+	va_end(ap);
 
-	vsyslog(LOG_WARNING, format, ap);
-
+	va_start(ap, format);
+	monitor_log(index, priority, format, ap);
 	va_end(ap);
 }
 
-void error(const char *format, ...)
+void btd_error(uint16_t index, const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
-
 	vsyslog(LOG_ERR, format, ap);
+	va_end(ap);
 
+	va_start(ap, format);
+	monitor_log(index, LOG_ERR, format, ap);
 	va_end(ap);
 }
 
-void btd_debug(const char *format, ...)
+void btd_warn(uint16_t index, const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
+	vsyslog(LOG_WARNING, format, ap);
+	va_end(ap);
 
+	va_start(ap, format);
+	monitor_log(index, LOG_WARNING, format, ap);
+	va_end(ap);
+}
+
+void btd_info(uint16_t index, const char *format, ...)
+{
+	va_list ap;
+
+	va_start(ap, format);
+	vsyslog(LOG_INFO, format, ap);
+	va_end(ap);
+
+	va_start(ap, format);
+	monitor_log(index, LOG_INFO, format, ap);
+	va_end(ap);
+}
+
+void btd_debug(uint16_t index, const char *format, ...)
+{
+	va_list ap;
+
+	va_start(ap, format);
 	vsyslog(LOG_DEBUG, format, ap);
+	va_end(ap);
 
+	va_start(ap, format);
+	monitor_log(index, LOG_DEBUG, format, ap);
 	va_end(ap);
 }
 
@@ -128,17 +169,21 @@ void __btd_log_init(const char *debug, int detach)
 
 	__btd_enable_debug(__start___debug, __stop___debug);
 
+	bt_log_open();
+
 	if (!detach)
 		option |= LOG_PERROR;
 
-	openlog("bluetoothd", option, LOG_DAEMON);
+	openlog(LOG_IDENT, option, LOG_DAEMON);
 
-	syslog(LOG_INFO, "Bluetooth daemon %s", VERSION);
+	info("Bluetooth daemon %s", VERSION);
 }
 
 void __btd_log_cleanup(void)
 {
 	closelog();
+
+	bt_log_close();
 
 	g_strfreev(enabled);
 }

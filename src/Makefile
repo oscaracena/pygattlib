@@ -3,6 +3,9 @@
 # Copyright (C) 2014,2020 Oscar Acena <oscaracena@gmail.com>
 # This software is under the terms of Apache License v2 or later.
 
+# 2023/11/28 - Update bluez sources to version 5.70:
+# - https://github.com/bluez/bluez/releases/tag/5.70
+
 PLATFORM := $(shell uname -m)
 TARGETS   = gattlib.so
 OBJECTS   = att.o crypto.o uuid.o gatt.o gattrib.o btio.o log.o utils.o \
@@ -17,7 +20,7 @@ CFLAGS  += -ggdb -fPIC -Wall $$($(PYTHON_CONFIG) --includes) \
            -Ibluez $$(pkg-config --cflags glib-2.0)
 CFLAGS  += -DDEBUG
 
-CFLAGS  += -DVERSION='"5.25"'
+CFLAGS  += -DVERSION='"5.70"'
 CXXFLAGS = $(CFLAGS)
 LDFLAGS  = -l$(BOOST_PYTHON) -lboost_thread -lbluetooth \
            $$(pkg-config --libs glib-2.0)
@@ -35,6 +38,9 @@ gattlib.so: $(OBJECTS)
 
 print-boost-ver:
 	@echo $(BOOST_PYTHON)
+
+patch-bluez:
+	QUILT_PATCHES=patches quilt push -a
 
 .PHONY: clean
 clean:

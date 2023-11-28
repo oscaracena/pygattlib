@@ -1,6 +1,6 @@
 // -*- mode: c++; coding: utf-8 -*-
 
-// Copyright (C) 2014,2020 Oscar Acena <oscaracena@gmail.com>
+// Copyright (C) 2014,2020,2023 Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of Apache License v2 or later.
 
 #include <boost/python.hpp>
@@ -8,6 +8,9 @@
 #include <boost/python/overloads.hpp>
 #include <boost/python/raw_function.hpp>
 #include <boost/python/to_python_converter.hpp>
+
+#include "lib/bluetooth.h"
+#include "btio/btio.h"
 
 #include "gattlib.h"
 #include "gattservices.h"
@@ -23,7 +26,7 @@ PyObject* pyBTIOExceptionPtr = NULL;
 boost::python::object pyGATTException;
 PyObject* pyGATTExceptionPtr = NULL;
 
-/** to-python convert for std::vector<char> */
+// to-python convert for std::vector<char>
 struct bytes_vector_to_python_bytes
 {
     static PyObject* convert(std::vector<char> const& s)

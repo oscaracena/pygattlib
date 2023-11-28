@@ -4,8 +4,6 @@
 # Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 # This software is under the terms of Apache License v2 or later.
 
-from __future__ import print_function
-
 import sys
 from threading import Event
 from gattlib import GATTRequester

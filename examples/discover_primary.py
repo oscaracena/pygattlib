@@ -4,10 +4,9 @@
 # Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
 # This software is under the terms of Apache License v2 or later.
 
-from __future__ import print_function
-
 import sys
 from gattlib import GATTRequester
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:

@@ -1,10 +1,10 @@
 // -*- mode: c++; coding: utf-8; tab-width: 4 -*-
 
-// Copyright (C) 2014, Oscar Acena <oscaracena@gmail.com>
+// Copyright (C) 2014,2023 Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of Apache License v2 or later.
 
-#ifndef _MIBANDA_GATTLIB_H_
-#define _MIBANDA_GATTLIB_H_
+#ifndef _MIBAND_GATTLIB_H_
+#define _MIBAND_GATTLIB_H_
 
 #define MAX_WAIT_FOR_PACKET 15 // seconds
 
@@ -17,10 +17,11 @@
 
 extern "C" {
 #include "lib/uuid.h"
+#include "lib/sdp.h"
 #include "attrib/att.h"
 #include "attrib/gattrib.h"
 #include "attrib/gatt.h"
-#include "attrib/utils.h"
+#include "attrib/gatttool.h"
 }
 
 #include "event.hpp"
@@ -38,32 +39,22 @@ private:
 	Event start_event;
 };
 
-class BTIOException : public std::runtime_error
-{
+class BTIOException : public std::runtime_error {
 public:
     BTIOException(int status_, const std::string &msg)
-        : std::runtime_error(msg), status(status_)
-    {
-    }
+        : std::runtime_error(msg), status(status_) { }
     BTIOException(int status_, const char *msg)
-        : std::runtime_error(msg), status(status_)
-    {
-    }
+        : std::runtime_error(msg), status(status_) { }
 
     int status;
 };
 
-class GATTException : public std::runtime_error
-{
+class GATTException : public std::runtime_error {
 public:
     GATTException(int status_, const std::string &msg)
-        : std::runtime_error(msg), status(status_)
-    {
-    }
+        : std::runtime_error(msg), status(status_) { }
     GATTException(int status_, const char *msg)
-        : std::runtime_error(msg), status(status_)
-    {
-    }
+        : std::runtime_error(msg), status(status_) { }
 
     int status;
 };
@@ -80,7 +71,7 @@ protected:
 class GATTResponse : public GATTPyBase {
 public:
 	GATTResponse(PyObject* p);
-	virtual ~GATTResponse() {};
+	virtual ~GATTResponse() { };
 
 	virtual void on_response(boost::python::object data);
 	virtual void on_response_complete() { }
@@ -175,8 +166,8 @@ private:
 	int _hci_socket;
 	GIOChannel* _channel;
 	GAttrib* _attrib;
-	class AttribLocker : public _GAttribLock
-	{
+
+	class AttribLocker : public _GAttribLock {
 	public:
 		AttribLocker()
 		{
@@ -193,7 +184,8 @@ private:
 		}
 		boost::mutex _mutex;
 	} attriblocker;
+
 	Event _ready;
 };
 
-#endif // _MIBANDA_GATTLIB_H_
+#endif // _MIBAND_GATTLIB_H_

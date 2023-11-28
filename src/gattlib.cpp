@@ -1,6 +1,6 @@
 // -*- mode: c++; coding: utf-8 -*-
 
-// Copyright (C) 2014,2020 Oscar Acena <oscaracena@gmail.com>
+// Copyright (C) 2014,2020,2023 Oscar Acena <oscaracena@gmail.com>
 // This software is under the terms of Apache License v2 or later.
 
 #include <boost/thread/thread.hpp>
@@ -16,6 +16,7 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
+#include "btio/btio.h"
 #include "gattlib.h"
 
 
@@ -48,13 +49,11 @@ class PyKwargsExtracter
 public:
     PyKwargsExtracter(boost::python::tuple &args_, boost::python::dict &kwargs_, int start_)
         : args(args_), kwargs(kwargs_), curarg(start_-1),
-          kwargsused(0)
-    {
+          kwargsused(0) {
     }
 
     template<typename T>
-    bool extract(T &dst, const char *name)
-    {
+    bool extract(T &dst, const char *name) {
         curarg++;
         if (boost::python::len(args) > curarg) {
             dst = boost::python::extract<T>(args[curarg]);
@@ -68,8 +67,7 @@ public:
     }
 
     template<typename T>
-    T extract(const char *name, const T& defval)
-    {
+    T extract(const char *name, const T& defval) {
         curarg++;
         if (boost::python::len(args) > curarg) {
             return boost::python::extract<T>(args[curarg]);
@@ -327,7 +325,7 @@ connect_cb(GIOChannel* channel, GError* err, gpointer userp) {
     else if (cid == ATT_CID)
         mtu = ATT_DEFAULT_LE_MTU;
 
-    request->_attrib = g_attrib_withlock_new(channel, mtu, &request->attriblocker);
+    request->_attrib = g_attrib_withlock_new(channel, mtu, false, &request->attriblocker);
 
     request->incref();
     g_attrib_register(request->_attrib, ATT_OP_HANDLE_NOTIFY,
@@ -366,16 +364,17 @@ GATTRequester::connect(
     {
         PyThreadsGuard guard;
 
-        _channel = gatt_connect
-            (_device.c_str(),          // 'hciX'
-             _address.c_str(),         // 'mac address'
-             channel_type.c_str(),     // 'public' '[public | random]'
-             security_level.c_str(),   // sec_level, '[low | medium | high]'
-             psm,                      // 0, psm
-             mtu,                      // 0, mtu
-             connect_cb,
-             &gerr,
-             (gpointer)this);
+        _channel = gatt_connect(
+            _device.c_str(),        // 'hciX'
+            _address.c_str(),       // 'mac address'
+            channel_type.c_str(),   // 'public' '[public | random]'
+            security_level.c_str(), // sec_level, '[low | medium | high]'
+            psm,                    // 0, psm
+            mtu,                    // 0, mtu
+            connect_cb,
+            &gerr,
+            (gpointer)this
+        );
     }
 
     if (_channel == NULL) {
