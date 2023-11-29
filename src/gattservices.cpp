@@ -25,7 +25,7 @@ DiscoveryService::DiscoveryService(const std::string device) :
 	_device_desc = hci_open_dev(dev_id);
 	if (_device_desc < 0)
 		throw std::runtime_error("Could not open device!");
-	}
+}
 
 DiscoveryService::~DiscoveryService() {
 	if (_device_desc != -1)

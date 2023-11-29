@@ -5,7 +5,6 @@ import os
 import sys
 import subprocess
 from setuptools import setup, Extension
-# from versions import get_boost_version
 
 extension_modules = []
 
@@ -17,6 +16,7 @@ def get_boost_version(out=None):
 
     ver = os.path.splitext(out.split()[0][3:])[0].decode()
     return ver
+
 
 def tests():
     # case: python3-py3x.so
@@ -59,27 +59,45 @@ if sys.platform.startswith('linux'):
     glib_libs = glib_libs.strip().split("-l")
     glib_libs = [x.strip() for x in glib_libs if x]
 
-    boost_py = get_boost_version()
+    # FIXME: get sources, libs, flags, etc. from src/Makefile
+    sources = [
+        "src/bluez/attrib/att.c",
+		"src/bluez/attrib/gatt.c",
+		"src/bluez/attrib/gattrib.c",
+		"src/bluez/attrib/utils.c",
+		"src/bluez/src/shared/att.c",
+		"src/bluez/src/shared/crypto.c",
+		"src/bluez/src/shared/queue.c",
+		"src/bluez/src/shared/util.c",
+		"src/bluez/src/shared/io-glib.c",
+		"src/bluez/src/shared/gatt-client.c",
+		"src/bluez/src/shared/timeout-glib.c",
+		"src/bluez/src/shared/gatt-db.c",
+		"src/bluez/src/shared/gatt-helpers.c",
+		"src/bluez/src/shared/log.c",
+		"src/bluez/src/log.c",
+		"src/bluez/lib/uuid.c",
+		"src/bluez/lib/sdp.c",
+		"src/bluez/lib/bluetooth.c",
+		"src/bluez/lib/hci.c",
+		"src/bluez/btio/btio.c",
+
+        "src/gattservices.cpp",
+		"src/gattlib.cpp",
+		"src/bindings.cpp",
+		"src/beacon.cpp",
+    ]
+
+    libraries = glib_libs + [get_boost_version(), "boost_thread"]
+    include_dirs = glib_headers + ['src/bluez']
 
     extension_modules = [
         Extension(
-            'gattlib',
-            ['src/gattservices.cpp',
-             'src/beacon.cpp',
-             'src/bindings.cpp',
-             'src/gattlib.cpp',
-             'src/bluez/lib/uuid.c',
-             'src/bluez/attrib/gatt.c',
-             'src/bluez/attrib/gattrib.c',
-             'src/bluez/attrib/utils.c',
-             'src/bluez/attrib/att.c',
-             'src/bluez/src/shared/crypto.c',
-             'src/bluez/src/log.c',
-             'src/bluez/btio/btio.c'],
-
-            libraries=glib_libs + [boost_py, "boost_thread", "bluetooth"],
-            include_dirs=glib_headers + ['src/bluez'],
-            define_macros=[('VERSION', '"5.25"')]
+            name='gattlib',
+            sources=sources,
+            libraries=libraries,
+            include_dirs=include_dirs,
+            define_macros=[('VERSION', '"5.70"')]
         )
     ]
 else:
@@ -100,7 +118,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='gattlib',
-    version="0.20210616",
+    version="5.70",
     description="Library to access Bluetooth LE devices",
     long_description=long_description,
     long_description_content_type="text/markdown",

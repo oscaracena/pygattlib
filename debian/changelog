@@ -1,3 +1,9 @@
+gattlib (5.70-1) unstable; urgency=low
+
+  * New release, update from upstream bluez
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Wed, 29 Nov 2023 11:31:04 +0100
+
 gattlib (0.20210616-1) unstable; urgency=low
 
   * New release

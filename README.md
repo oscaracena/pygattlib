@@ -211,6 +211,21 @@ You can receive indications as well. Just overwrite the method
 `on_indication` of `GATTRequester`.
 
 
+Troubleshooting
+===============
+
+If you encounter any problem, ensure first that your hardware is compatible and
+working fine. To check if your adapter supports BLE, you can use:
+
+    sudo hciconfig hci0 lestates
+
+To check if the device that you want to talk to is discoverable, run:
+
+    bluetoothctl scan le
+
+And check if it appears on the results.
+
+
 Disclaimer
 ==========
 

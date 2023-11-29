@@ -16,7 +16,10 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
+extern "C" {
 #include "btio/btio.h"
+}
+
 #include "gattlib.h"
 
 
