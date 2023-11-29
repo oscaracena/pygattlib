@@ -18,44 +18,31 @@ Index
 Description
 ===========
 
-This is a Python library to use the GATT Protocol for Bluetooth LE
-devices. It is a wrapper around the implementation used by gatttool in
-bluez package. It does not call other binaries to do its job :)
+This is a Python library to use the GATT Protocol for Bluetooth LE devices.
+It uses D-Bus to control the underlying hardware. It does not call other
+binaries to do its job :)
 
 
 Installation
 ============
 
-There are many ways of installing this library: using Python Pip,
-using the Debian package, or manually compiling it.
+You can install this library using Python `pip`. If you use Debian/Ubuntu, you may also
+install using the provided Debian package.
 
 Python pip
 ----------
 
-First, you need to install the depends. In Debian/Ubuntu this will be something like:
-
-    sudo apt install pkg-config libboost-python-dev libboost-thread-dev libbluetooth-dev libglib2.0-dev python3-dev
-
-Now, install as ever:
+As easy as always:
 
     pip install gattlib
 
-Debian way
-----------
+Debian package
+--------------
 
 There is a single Debian package available from
 [https://github.com/oscaracena/pygattlib/releases](https://github.com/oscaracena/pygattlib/releases). Just download it and install using the following command:
 
     sudo apt install ./python3-gattlib*.deb
-
-Compiling from source
----------------------
-
-You should install the needed packages, which are described on `DEPENDS`
-file. Take special care about versions: libbluetooth-dev should be
-4.101 or greater. Then, just type:
-
-    ./setup.py install --user
 
 
 Usage

@@ -1,8 +1,0 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: python-gattlib
-Source: https://github.com/oscaracena/pygattlib
-
-Files: *
-Copyright: 2014 Oscar Aceña Herrera <oscaracena@gmail.com>
-License: Apache-2.0
- /usr/share/common-licenses/Apache-2.0

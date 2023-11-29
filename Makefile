@@ -1,7 +1,10 @@
 # -*- mode: makefile-gmake; coding: utf-8 -*-
 
+# Copyright (C) 2023, Oscar Acena <oscaracena@gmail.com>
+# This software is under the terms of Apache License v2 or later.
+
+
 all:
-	$(MAKE) -C src $@
 
 python-wheel:
 	python3 -m build --wheel
@@ -15,10 +18,8 @@ pypi-upload:
 	python3 setup.py sdist
 	twine upload dist/*
 
-%:
-	$(MAKE) -C src $@
-
 .PHONY: clean
 clean:
-	$(MAKE) -C src $@
+	find . -name "*.pyc" -print -delete
+	find . -name "__pycache__" -print -delete
 	$(RM) -fr build dist MANIFEST gattlib.egg-info
