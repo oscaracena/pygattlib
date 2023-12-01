@@ -7,8 +7,9 @@
 from gattlib import DiscoveryService
 
 
-service = DiscoveryService("hci0")
-devices = service.discover(4)
+service = DiscoveryService(adapter="hci0")
+print("Disocver launched, waiting 10 seconds...")
+devices = service.discover(timeout=10)
 
 for address, name in list(devices.items()):
     print("name: {}, address: {}".format(name, address))

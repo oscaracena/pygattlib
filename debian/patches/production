@@ -1,0 +1,14 @@
+Index: pygattlib/gattlib/utils.py
+===================================================================
+--- pygattlib.orig/gattlib/utils.py
++++ pygattlib/gattlib/utils.py
+@@ -41,9 +41,6 @@ log.propagate = False
+ log.setLevel(logging.DEBUG)
+ log.addHandler(_ch)
+ 
+-# NOTE: remove this in production
+-logging.basicConfig()
+-
+ 
+ # This is a decorator used to deprecate arguments that have changed its name, or not
+ # supported anymore. Usage:

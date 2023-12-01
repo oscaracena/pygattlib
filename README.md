@@ -66,31 +66,55 @@ Discovering devices
 -------------------
 
 To discover BLE devices, use the `DiscoveryService` provided. You need
-to create an instance of it, indicating the Bluetooth device you want
-to use. Then call the method `discover`, with a timeout. It will
-return a dictionary with the address and name of all devices that
-responded the discovery.
-
-**Note**: it is very likely that you will need admin permissions to do
-a discovery, so run this script using `sudo` (or something similar).
-
-As example:
+to create an instance of it, indicating the Bluetooth adapter you want
+to use. Then call the method `discover`. Here you have some options. If
+you provide a `timeout`, then it will wait that amount of time and
+return a dictionary with the address and name of all the devices that
+responded the discovery. For example:
 
 ```python
 from gattlib import DiscoveryService
 
 service = DiscoveryService("hci0")
-devices = service.discover(2)
+devices = service.discover(timeout=5)
 
 for address, name in devices.items():
     print("name: {}, address: {}".format(name, address))
 ```
 
+If you don't provide a timeout, then you must give a
+`callback` function. The `discover` will return inmediatly, but the
+process will still be running on a separated thread. When a new device
+is discovered, the callback will be called (with the name and address as
+it's arguments). For example:
+
+```python
+import time
+from gattlib import DiscoveryService
+
+def on_new_device(name, address):
+    print("name: {}, address: {}".format(name, address))
+
+service = DiscoveryService("hci0")
+service.discover(callback=on_new_device)
+
+try:
+    # You can do here other things, while discovering is still running
+    time.sleep(9999)
+except KeyboardInterrupt:
+    service.stop()
+```
+
+As a third option, you may provide both the `timeout` and the `callback`.
+In that case, the call to `discover` is blocking, and it will return the
+discovered devices when the timeout expired. Also, while it is running and
+a new device is found, it will call the provided `callback`.
+
 
 Reading data
 ------------
 
-First of all, you need to create a GATTRequester, passing the address
+First of all, you need to create a `GATTRequester`, passing the address
 of the device to connect to. Then, you can read a value defined by
 either its handle or by its UUID. For example:
 
@@ -106,9 +130,9 @@ steps = req.read_by_handle(0x15)[0]
 Reading data asynchronously
 --------------------------
 
-The process is almost the same: you need to create a GATTRequester
+The process is almost the same: you need to create a `GATTRequester`
 passing the address of the device to connect to. Then, create a
-GATTResponse object, on which receive the response from your
+`GATTResponse` object, on which receive the response from your
 device. This object will be passed to the `async` method used.
 
 **NOTE**: It is important to maintain the Python process alive, or the
@@ -130,7 +154,7 @@ while not response.received():
 steps = response.received()[0]
 ```
 
-And then, an example that inherits from GATTResponse to be notified
+And then, an example that inherits from `GATTResponse` to be notified
 when the response arrives:
 
 ```python
@@ -153,7 +177,7 @@ while True:
 Writing data
 ------------
 
-The process to write data is the same as for read. Create a GATTRequest object,
+The process to write data is the same as for read. Create a `GATTRequest` object,
 and use the method `write_by_handle` to send the data. This method will issue a
 `write request`. As a note, data must be a bytes object. See the following
 example:
@@ -210,7 +234,10 @@ To check if the device that you want to talk to is discoverable, run:
 
     bluetoothctl scan le
 
-And check if it appears on the results.
+And check if it appears on the results. Moreover, you need the bluetooth service
+registered on DBus. To see if that's the case, run:
+
+    gdbus introspect --system --dest org.bluez --object-path /org/bluez/hci0
 
 
 Disclaimer
