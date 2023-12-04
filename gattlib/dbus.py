@@ -10,10 +10,14 @@ from threading import Thread, RLock
 from uuid import uuid4
 from traceback import format_exc
 from functools import partial
+from weakref import WeakMethod, finalize
 from dasbus.connection import SystemMessageBus
 from dasbus.client.proxy import AbstractObjectProxy, get_object_path
 from dasbus.identifier import DBusServiceIdentifier
 from dasbus.loop import EventLoop
+
+# do not remove, used in requester.py
+from dasbus.error import DBusError
 
 from .exceptions import DeviceNotFound, AdapterNotFound
 from .utils import log
@@ -36,6 +40,10 @@ class Signals:
     PROPERTIES_CHANGED = "PropertiesChanged"
     DEVICE_ADDED = "DeviceAdded"
     DEVICE_REMOVED = "DeviceRemoved"
+
+    @classmethod
+    def DEVICE_PROPERTIES_CHANGED(cls, path: str) -> str:
+        return f"{cls.PROPERTIES_CHANGED}:{path}"
 
 BLUEZ_MANAGER = DBusServiceIdentifier(
     message_bus = SYSTEM_BUS,
@@ -82,6 +90,7 @@ class BluezMonitor(Thread):
         self._obs_channels = {}
         self._obs_clients = {}
         self._obs_lock = RLock()
+        self._tracked_devices = {}
 
         # listen for new/removed devices
         self._manager = BLUEZ_MANAGER.get_proxy("/", Interfaces.DBUS_MANAGER)
@@ -114,7 +123,8 @@ class BluezMonitor(Thread):
 
             oid = uuid4().hex
             observers.append(oid)
-            self._obs_clients[oid] = callback
+            self._obs_clients[oid] = WeakMethod(callback)
+            finalize(callback.__self__, self._obs_clients.pop, oid)
             return oid
 
     def disconnect(self, observer: ObserverId) -> None:
@@ -134,7 +144,6 @@ class BluezMonitor(Thread):
             interface_name = Interfaces.DBUS_PROPERTIES,
         )
 
-        self._tracked_devices = {}
         callback = partial(self._on_device_props_changed, path=object_path)
         props.PropertiesChanged.connect(callback)
         self._tracked_devices[object_path] = (props, device._spec, callback)
@@ -153,6 +162,11 @@ class BluezMonitor(Thread):
         fields = self._tracked_devices.get(path)
         if not fields:
             return
+
+        # notify observer before updating device spec, in order to allow them to retrieve
+        # the old property value
+        SIGNAL = Signals.DEVICE_PROPERTIES_CHANGED(path)
+        self._notify_observers(SIGNAL, changed, invalid)
 
         spec = fields[1]
         spec.update(changed)
@@ -189,6 +203,8 @@ class BluezMonitor(Thread):
                     observers.remove(oid)
                     continue
                 try:
+                    if isinstance(callback, WeakMethod):
+                        callback = callback()
                     callback(*args, **kwargs)
                 except Exception:
                     msg = format_exc()

@@ -7,8 +7,9 @@
 from threading import Thread
 from typing import Callable
 
-from .dbus import BluezDBus
-from .utils import log, deprecated
+from .dbus import BluezDBus, DBusError, Signals
+from .exceptions import BTIOException
+from .utils import log, deprecated, wrap_exception
 
 
 class GATTRequester:
@@ -16,15 +17,43 @@ class GATTRequester:
     def __init__(self, address: str, auto_connect: bool = True, adapter: str = "hci0"):
         self._bluez = BluezDBus()
         self._device = self._bluez.find_device(address, adapter)
+        self._log = log.getChild("GATTReq")
+
+        obj_path = self._device.prop("ObjectPath")
+        self._bluez.connect(
+            Signals.DEVICE_PROPERTIES_CHANGED(obj_path), self._on_props_changed)
+
+        self._on_connect_cb = None
+        self._on_fail_cb = None
 
         if auto_connect:
             self.connect()
 
     @deprecated(channel_type=None, security_level=None, psm=None, mtu=None)
-    def connect(self, wait: bool = False, on_success: Callable = None) -> None:
-        if wait:
-            return self._device.Connect()
-        Thread(target=self._device.Connect, daemon=True).start()
+    @wrap_exception(DBusError, BTIOException)
+    def connect(self, wait: bool = False, on_connect: Callable = None,
+                on_fail: Callable = None, on_disconnect: Callable = None) -> None:
+
+        self._on_connect_cb = on_connect
+        self._on_fail_cb = on_fail
+        self._on_disconnect_cb = on_disconnect
+
+        def _do_connect():
+            try:
+                already_connected = self.is_connected()
+                self._device.Connect()
+
+                # If was already connected, the property will not change, and
+                # the callback will not be called. Call it here.
+                if already_connected:
+                    self.on_connect()
+            except Exception as ex:
+                self.on_connect_failed(str(ex))
+
+        if not wait:
+            Thread(target=_do_connect, daemon=True).start()
+        else:
+            _do_connect()
 
     def is_connected(self) -> bool:
         return self._device.prop("Connected")
@@ -33,19 +62,29 @@ class GATTRequester:
         self._device.Disconnect()
 
     def on_connect(self) -> None:
-        pass
+        if self._on_connect_cb:
+            self._on_connect_cb()
 
-    def on_connect_failed(self) -> None:
-        pass
+    def on_connect_failed(self, msg: str) -> None:
+        if self._on_fail_cb is not None:
+            return self._on_fail_cb(f"Exception: {msg}")
+        self._log.warning(" Exception on async connect, but no 'on_fail' callback!")
 
     def on_disconnect(self) -> None:
-        pass
+        if self._on_disconnect_cb:
+            self._on_disconnect_cb()
+
+    def _on_props_changed(self, changed: dict, invalid: list):
+        connected = changed.get("Connected")
+        if connected is None:
+            return
+
+        if connected:
+            self.on_connect()
+        else:
+            self.on_disconnect()
 
     # FIXME: add missing former-implementation methods:
-	# virtual void on_connect(int mtu) { }
-	# virtual void on_connect_failed(int code) { }
-	# virtual void on_disconnect() { }
-
 	# virtual void on_notification(const uint16_t handle, const std::string data);
 	# virtual void on_indication(const uint16_t handle, const std::string data);
 

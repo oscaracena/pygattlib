@@ -19,22 +19,22 @@ if len(sys.argv) != 2:
 
 stop = Event()
 
-def on_connect():
-    print("Connected OK.")
-    stop.set()
+class MyRequester(GATTRequester):
+    def on_connect(self):
+        print("Connected OK.")
+        stop.set()
 
-def on_fail(msg):
-    print("Could not connect! :(")
-    print(f"ERROR was: {msg}")
-    stop.set()
+    def on_connect_failed(self, msg):
+        print("Could not connect! :(")
+        print(f"ERROR was: {msg}")
+        stop.set()
 
-def on_disconnect():
-    print("Disconnected!")
+    def on_disconnect(self):
+        print("Disconnected!")
 
 print("Connecting... ")
-requester = GATTRequester(address=sys.argv[1], auto_connect=False)
-requester.connect(wait=False,
-    on_connect=on_connect, on_fail=on_fail, on_disconnect=on_disconnect)
+requester = MyRequester(address=sys.argv[1], auto_connect=False)
+requester.connect(wait=False)
 
 try:
     stop.wait()

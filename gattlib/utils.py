@@ -45,6 +45,11 @@ log.addHandler(_ch)
 logging.basicConfig()
 
 
+def jprint(data):
+    defvalue = lambda o: o.unpack()
+    print(json.dumps(data, ensure_ascii=False, indent=4, default=defvalue))
+
+
 # This is a decorator used to deprecate arguments that have changed its name, or not
 # supported anymore. Usage:
 #
@@ -70,6 +75,16 @@ def deprecated(**fields):
     return _deprecated_decorator
 
 
-def jprint(data):
-    defvalue = lambda o: o.unpack()
-    print(json.dumps(data, ensure_ascii=False, indent=4, default=defvalue))
+# This is a decorator used to convert exception domains (from SrcException to DstException)
+# Use it when the code may raise an unknown exception for the user, to wrap it directly
+# to a known exception class.
+def wrap_exception(SrcException, DstException):
+    def _wrapped(fn):
+        def _deco(*args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            except SrcException as ex:
+                msg = f"{ex.__class__} error: {ex}"
+                raise DstException(msg) from None
+        return _deco
+    return _wrapped
