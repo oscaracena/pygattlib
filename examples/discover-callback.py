@@ -21,4 +21,4 @@ try:
         time.sleep(1)
 except KeyboardInterrupt:
     service.stop()
-    print("\rBye!")
+    print("\nBye!")

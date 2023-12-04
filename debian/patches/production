@@ -10,5 +10,5 @@ Index: pygattlib/gattlib/utils.py
 -logging.basicConfig()
 -
  
- # This is a decorator used to deprecate arguments that have changed its name, or not
- # supported anymore. Usage:
+ def jprint(data):
+     defvalue = lambda o: o.unpack()

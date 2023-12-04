@@ -19,8 +19,10 @@ from dasbus.loop import EventLoop
 # do not remove, used in requester.py
 from dasbus.error import DBusError
 
-from .exceptions import DeviceNotFound, AdapterNotFound
-from .utils import log
+from .exceptions import (
+    DeviceNotFound, AdapterNotFound, ServiceNotFound, CharacteristicNotFound
+)
+from .utils import log, jprint
 
 
 ObserverId = str
@@ -33,6 +35,8 @@ class Interfaces:
     DEVICE = BLUEZ_SERVICE_NAME + ".Device1"
     DBUS_MANAGER = "org.freedesktop.DBus.ObjectManager"
     DBUS_PROPERTIES = "org.freedesktop.DBus.Properties"
+    GATT_SERVICE = 'org.bluez.GattService1'
+    GATT_CHARACTERISTIC = 'org.bluez.GattCharacteristic1'
 
 class Signals:
     INTERFACES_ADDED = "InterfacesAdded"
@@ -124,7 +128,7 @@ class BluezMonitor(Thread):
             oid = uuid4().hex
             observers.append(oid)
             self._obs_clients[oid] = WeakMethod(callback)
-            finalize(callback.__self__, self._obs_clients.pop, oid)
+            finalize(callback.__self__, self._obs_clients.pop, oid).atexit = False
             return oid
 
     def disconnect(self, observer: ObserverId) -> None:
@@ -257,3 +261,69 @@ class BluezDBus:
                 return BluezDevice(path, device, self._monitor)
 
         raise DeviceNotFound(address, adapter)
+
+    def find_gatt_services(self, path_prefix: str = "/", primary: bool = True) -> list:
+        objects = self._manager.GetManagedObjects()
+
+        uuids = set()
+        for path, ifaces in objects.items():
+            if not path.startswith(path_prefix + "/"):
+                continue
+            service = ifaces.get(Interfaces.GATT_SERVICE)
+            if not service:
+                continue
+            is_primary = service.get("Primary")
+            if is_primary is None or is_primary.unpack() != primary:
+                continue
+            uuids.add(service.get("UUID"))
+
+        return list(uuids)
+
+    def find_gatt_characteristics(self, path_prefix: str, service_uuid: str) -> list:
+        objects = self._manager.GetManagedObjects()
+        service_path = self._get_service_path(objects, path_prefix, service_uuid)
+        if service_path is None:
+            raise ServiceNotFound(service_uuid)
+
+        uuids = set()
+        for path, ifaces in objects.items():
+            if not path.startswith(path_prefix + "/"):
+                continue
+            char = ifaces.get(Interfaces.GATT_CHARACTERISTIC)
+            if not char:
+                continue
+            service = char.get("Service").unpack()
+            if service != service_path:
+                continue
+            uuids.add(char.get("UUID"))
+
+        return list(uuids)
+
+    def get_characteristic(self, path_prefix: str, char_uuid: str) -> AbstractObjectProxy:
+        objects = self._manager.GetManagedObjects()
+        for path, ifaces in objects.items():
+            if not path.startswith(path_prefix + "/"):
+                continue
+            char = ifaces.get(Interfaces.GATT_CHARACTERISTIC)
+            if not char:
+                continue
+            if char.get("UUID").unpack() != char_uuid:
+                continue
+
+            return self._bus.get_proxy(
+                service_name = BLUEZ_SERVICE_NAME,
+                object_path = path,
+                interface_name = Interfaces.GATT_CHARACTERISTIC,
+            )
+
+        raise CharacteristicNotFound(char_uuid)
+
+    def _get_service_path(self, objects: list, prefix: str, uuid: str) -> str:
+        for path, ifaces in objects.items():
+            if not path.startswith(prefix + "/"):
+                continue
+            service = ifaces.get(Interfaces.GATT_SERVICE)
+            if not service:
+                continue
+            if service.get("UUID").unpack() == uuid:
+                return path

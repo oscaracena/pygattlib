@@ -9,7 +9,7 @@ from traceback import format_exc
 from typing import Optional, Dict, Callable
 
 from .dbus import BluezDBus, Signals
-from .utils import log, deprecated
+from .utils import log, deprecated_args
 
 
 Name = str
@@ -18,7 +18,7 @@ Devices = Dict[Name, Address]
 
 
 class DiscoveryService:
-    @deprecated(device="adapter")
+    @deprecated_args(device="adapter")
     def __init__(self, adapter: str = "hci0"):
         self._bluez = BluezDBus()
         self._adapter = self._bluez.find_adapter(adapter)

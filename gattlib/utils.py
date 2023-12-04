@@ -53,11 +53,11 @@ def jprint(data):
 # This is a decorator used to deprecate arguments that have changed its name, or not
 # supported anymore. Usage:
 #
-#   @deprecated(old_name="new_name", old_unsupported_param=None)
+#   @deprecated_args(old_name="new_name", old_unsupported_param=None)
 #   def my_func(new_name):
 #       ...
 #
-def deprecated(**fields):
+def deprecated_args(**fields):
     def _deprecated_decorator(fn):
         def _decorator(*args, **kwargs):
             for k, v in fields.items():

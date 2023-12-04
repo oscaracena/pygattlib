@@ -4,10 +4,11 @@ Index
 * [Description](#description)
 * [Installation](#installation)
     * [Python pip](#python-pip)
-    * [Debian way](#debian-way)
-    * [Compiling from source](#compiling-from-source)
+    * [Debian package](#debian-package)
 * [Usage](#usage)
     * [Discovering devices](#discovering-devices)
+    * [GATTRequester](#gattrequester)
+    * [Discovering GATT services](#discovering-gatt-services)
     * [Reading data](#reading-data)
     * [Reading data asynchronously](#reading-data-asynchronously)
     * [Writing data](#writing-data)
@@ -111,19 +112,112 @@ discovered devices when the timeout expired. Also, while it is running and
 a new device is found, it will call the provided `callback`.
 
 
+GATTRequester
+-------------
+
+In order to manage a discovered device, you need to create an instance of
+`GATTRequester`, using its address. Then, you can call `connect()` to create
+a new connection to that device. If the device is not paired, it will try to
+pair as well. For example:
+
+```python
+import sys
+from gattlib import GATTRequester
+
+if len(sys.argv) < 2:
+    print("Usage: {} <addr>".format(sys.argv[0]))
+    sys.exit(1)
+
+print("Connecting...")
+requester = GATTRequester(sys.argv[1], auto_connect=False)
+requester.connect()
+print("Done.")
+```
+
+The `connect()` method has the following arguments:
+
+* `wait: boolean`, to indicate if you want to wait for this method to complete
+  or not.
+* `on_connect: Callable`, used to provide a callback that will be called when the
+  connection is stablished, and will be called again if the connection is reset.
+* `on_fail: Callable`, used to provide a callback to be called when an error on
+  connection process occur.
+* `on_disconnect: Callable`, a callback that will be called if the device is
+  disconnected, for whatever reason it be.
+
+You may also subclass the `GATTRequester`, and override the `on_connect()`,
+`on_connect_failed(msg: str)` and `on_disconnect()` methods. Something like this:
+
+```python
+class MyRequester(GATTRequester):
+    def on_connect(self):
+        print("Connected OK.")
+
+    def on_connect_failed(self, msg):
+        print("Could not connect! :(")
+        print(f"ERROR was: {msg}")
+
+    def on_disconnect(self):
+        print("Disconnected!")
+```
+
+
+Discovering GATT services
+-------------------------
+
+Once connected to a device, you can retrieve a list of its GATT services,
+calling `discover_primary()`. This method will return a list of Service UUIDs.
+For example:
+
+```python
+import sys
+from gattlib import GATTRequester
+
+if len(sys.argv) < 2:
+    print("Usage: {} <addr>".format(sys.argv[0]))
+    sys.exit(1)
+
+requester = GATTRequester(sys.argv[1], auto_connect=True)
+
+print("Find GATT Primary services...")
+primary = requester.discover_primary()
+for prim in primary:
+    print(f"- {prim}")
+```
+
+You can, also, discover the list of characteristics of a service, given its
+UUID. To do so, use the method `discover_characteristics()`. Like this:
+
+```python
+import sys
+from gattlib import GATTRequester
+
+
+if len(sys.argv) != 3:
+    print("Usage: {} <addr> <service-UUID>".format(sys.argv[0]))
+    sys.exit(1)
+
+requester = GATTRequester(sys.argv[1], auto_connect=True)
+
+print("Find GATT Characteristics of given service...")
+chars = requester.discover_characteristics(service_uuid=sys.argv[2])
+for c in chars:
+    print(f"- {c}")
+```
+
+
 Reading data
 ------------
 
 First of all, you need to create a `GATTRequester`, passing the address
-of the device to connect to. Then, you can read a value defined by
-either its handle or by its UUID. For example:
+of the device to connect to. Then, you can read some characteristic's value
+given its UUID. For example:
 
 ```python
 from gattlib import GATTRequester
 
 req = GATTRequester("00:11:22:33:44:55")
-name = req.read_by_uuid("00002a00-0000-1000-8000-00805f9b34fb")[0]
-steps = req.read_by_handle(0x15)[0]
+value = req.read_by_uuid("00002a00-0000-1000-8000-00805f9b34fb")
 ```
 
 
@@ -131,46 +225,33 @@ Reading data asynchronously
 --------------------------
 
 The process is almost the same: you need to create a `GATTRequester`
-passing the address of the device to connect to. Then, create a
-`GATTResponse` object, on which receive the response from your
-device. This object will be passed to the `async` method used.
+passing the address of the device to connect to. Then, define a function
+callback on which receive the response from your device. This callback
+will be passed to the `*_async` method used.
 
-**NOTE**: It is important to maintain the Python process alive, or the
-response will never arrive. You can `wait` on that response object, or you
+**NOTE**: It is important to keep the Python process alive, or the
+response will never arrive. You can `wait` on an `Event` object, or you
 can do other things meanwhile.
 
-The following is an example of response waiting:
+The following is an example of async reading:
 
 ```python
-from gattlib import GATTRequester, GATTResponse
+import sys
+from threading import Event
+from gattlib import GATTRequester
 
-req = GATTRequester("00:11:22:33:44:55")
-response = GATTResponse()
+ready = Event()
 
-req.read_by_handle_async(0x15, response)
-while not response.received():
-    time.sleep(0.1)
+def on_response(value):
+    print(f"Value: {value}")
+    ready.set()
 
-steps = response.received()[0]
-```
-
-And then, an example that inherits from `GATTResponse` to be notified
-when the response arrives:
-
-```python
-from gattlib import GATTRequester, GATTResponse
-
-class NotifyYourName(GATTResponse):
-    def on_response(self, name):
-        print("your name is: {}".format(name))
-
-response = NotifyYourName()
-req = GATTRequester("00:11:22:33:44:55")
-req.read_by_handle_async(0x15, response)
-
-while True:
-    # here, do other interesting things
-    sleep(1)
+requester = GATTRequester("00:11:22:33:44:55")
+requester.read_by_uuid_async(
+    char_uuid = sys.argv[2],
+    on_response = on_response)
+print("Async reading, waiting response...")
+ready.wait()
 ```
 
 

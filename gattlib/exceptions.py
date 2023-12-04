@@ -24,3 +24,15 @@ class DeviceNotFound(BTBaseException):
     def __init__(self, address, adapter):
         msg = f"Device with address '{address}' not found (using adapter '{adapter}')!"
         super().__init__(msg)
+
+
+class ServiceNotFound(BTBaseException):
+    def __init__(self, uuid):
+        msg = f"Service with UUID '{uuid}' was not found!"
+        super().__init__(msg)
+
+
+class CharacteristicNotFound(BTBaseException):
+    def __init__(self, uuid):
+        msg = f"Characteristic with UUID '{uuid}' was not found!"
+        super().__init__(msg)
