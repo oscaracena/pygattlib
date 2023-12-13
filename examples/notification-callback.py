@@ -12,9 +12,12 @@ if len(sys.argv) != 3:
     print("Usage: {} <addr> <characteristic-UUID>".format(sys.argv[0]))
     sys.exit(1)
 
-print("Connecting...")
-requester = GATTRequester(sys.argv[1], auto_connect=True)
+def on_notification(char, data):
+    print(f"- notification on char {char}\n  data: {data}")
 
-print("Reading given characteristic...")
-value = requester.read_by_uuid(sys.argv[2])
-print(f"Value: {value}")
+requester = GATTRequester(sys.argv[1], auto_connect=True)
+requester.enable_notifications(sys.argv[2])
+print("Connected, waiting events...")
+
+import time
+time.sleep(50)

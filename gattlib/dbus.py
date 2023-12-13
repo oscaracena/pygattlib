@@ -17,6 +17,7 @@ from dasbus.identifier import DBusServiceIdentifier
 from dasbus.loop import EventLoop
 
 # do not remove, used in requester.py
+from dasbus.typing import Str, get_variant
 from dasbus.error import DBusError
 
 from .exceptions import (
@@ -46,7 +47,7 @@ class Signals:
     DEVICE_REMOVED = "DeviceRemoved"
 
     @classmethod
-    def DEVICE_PROPERTIES_CHANGED(cls, path: str) -> str:
+    def OBJECT_PROPERTIES_CHANGED(cls, path: str) -> str:
         return f"{cls.PROPERTIES_CHANGED}:{path}"
 
 BLUEZ_MANAGER = DBusServiceIdentifier(
@@ -66,10 +67,19 @@ class BluezDevice:
             object_path = path,
             interface_name = Interfaces.DEVICE
         )
-        self._monitor.keep_device_synced(self)
+
+        SIGNAL = Signals.OBJECT_PROPERTIES_CHANGED(path)
+        self._monitor.listen_for_property_changes(path)
+        self._monitor.connect(SIGNAL, self._on_properties_changed)
 
     def __del__(self):
-        self._monitor.stop_device_syncing(self)
+        self._monitor.stop_listening_for_property_changes(self._object_path)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._proxy, name)
+
+    def _on_properties_changed(self, changed: dict, invalid: list) -> None:
+        self._spec.update(changed)
 
     def prop(self, name: str) -> str:
         if name == "ObjectPath":
@@ -78,9 +88,6 @@ class BluezDevice:
         if value is None:
             raise KeyError(name)
         return value.unpack()
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._proxy, name)
 
 
 class BluezMonitor(Thread):
@@ -91,10 +98,11 @@ class BluezMonitor(Thread):
         self._bus = SYSTEM_BUS
         self._log = log.getChild("BMon")
 
+        # callbacks of clients interested on Bluez signals
         self._obs_channels = {}
         self._obs_clients = {}
         self._obs_lock = RLock()
-        self._tracked_devices = {}
+        self._listeners = {}
 
         # listen for new/removed devices
         self._manager = BLUEZ_MANAGER.get_proxy("/", Interfaces.DBUS_MANAGER)
@@ -138,42 +146,41 @@ class BluezMonitor(Thread):
             except KeyError:
                 pass
 
-    def keep_device_synced(self, device: BluezDevice) -> None:
-        # NOTE: do not store a reference to 'device', we need to keep track
-        # of its end of life
-        object_path = device.prop("ObjectPath")
+    def listen_for_property_changes(self, path: str) -> None:
+        # If already listening, nothing to do
+        if path in self._listeners:
+            return
+
         props = self._bus.get_proxy(
             service_name = BLUEZ_SERVICE_NAME,
-            object_path = object_path,
+            object_path = path,
             interface_name = Interfaces.DBUS_PROPERTIES,
         )
 
-        callback = partial(self._on_device_props_changed, path=object_path)
+        callback = partial(self._on_properties_changed, path=path)
         props.PropertiesChanged.connect(callback)
-        self._tracked_devices[object_path] = (props, device._spec, callback)
-        self._log.debug(f" tracking device properties of {object_path}")
+        self._listeners[path] = callback
+        self._log.debug(f" tracking properties of {path}")
 
-    def stop_device_syncing(self, device: BluezDevice) -> None:
-        object_path = device.prop("ObjectPath")
-        try:
-            props, spec, callback = self._tracked_devices.pop(object_path)
-            props.PropertiesChanged.disconnect(callback)
-        except KeyError:
-            pass
-        self._log.debug(f" stop tracking device properties of {object_path}")
-
-    def _on_device_props_changed(self, iface: str, changed: dict, invalid: list, path: str) -> None:
-        fields = self._tracked_devices.get(path)
-        if not fields:
+    def stop_listening_for_property_changes(self, path: str) -> None:
+        # If not listening, nothing to do
+        callback = self._listeners.get(path)
+        if callback is None:
             return
 
-        # notify observer before updating device spec, in order to allow them to retrieve
-        # the old property value
-        SIGNAL = Signals.DEVICE_PROPERTIES_CHANGED(path)
-        self._notify_observers(SIGNAL, changed, invalid)
+        props = self._bus.get_proxy(
+            service_name = BLUEZ_SERVICE_NAME,
+            object_path = path,
+            interface_name = Interfaces.DBUS_PROPERTIES,
+        )
 
-        spec = fields[1]
-        spec.update(changed)
+        props.PropertiesChanged.disconnect(callback)
+        self._log.debug(f" stop tracking properties of {path}")
+
+    def _on_properties_changed(self, iface: str, changed: dict, invalid: list, path: str) -> None:
+        print("PROPS CHANGE", changed)
+        SIGNAL = Signals.OBJECT_PROPERTIES_CHANGED(path)
+        self._notify_observers(SIGNAL, changed, invalid)
 
     def _on_ifaces_added(self, path: str, ifaces: dict) -> None:
         self._log.debug(f" new interface added, {path}")
@@ -232,6 +239,8 @@ class BluezDBus:
         # some method forwarding
         self.connect = self._monitor.connect
         self.disconnect = self._monitor.disconnect
+        self.listen_for_property_changes = self._monitor.listen_for_property_changes
+        self.stop_listening_for_property_changes = self._monitor.stop_listening_for_property_changes
 
     def find_adapter(self, name: str) -> AbstractObjectProxy:
         objects = self._manager.GetManagedObjects()
@@ -280,12 +289,14 @@ class BluezDBus:
         return list(uuids)
 
     def find_gatt_characteristics(self, path_prefix: str, service_uuid: str) -> list:
-        objects = self._manager.GetManagedObjects()
-        service_path = self._get_service_path(objects, path_prefix, service_uuid)
+        service_path = self.get_path_from_uuid(
+            path_prefix, Interfaces.GATT_SERVICE, service_uuid)
         if service_path is None:
             raise ServiceNotFound(service_uuid)
 
+        objects = self._manager.GetManagedObjects()
         uuids = set()
+
         for path, ifaces in objects.items():
             if not path.startswith(path_prefix + "/"):
                 continue
@@ -299,31 +310,34 @@ class BluezDBus:
 
         return list(uuids)
 
-    def get_characteristic(self, path_prefix: str, char_uuid: str) -> AbstractObjectProxy:
-        objects = self._manager.GetManagedObjects()
-        for path, ifaces in objects.items():
-            if not path.startswith(path_prefix + "/"):
-                continue
-            char = ifaces.get(Interfaces.GATT_CHARACTERISTIC)
-            if not char:
-                continue
-            if char.get("UUID").unpack() != char_uuid:
-                continue
-
-            return self._bus.get_proxy(
-                service_name = BLUEZ_SERVICE_NAME,
-                object_path = path,
-                interface_name = Interfaces.GATT_CHARACTERISTIC,
-            )
-
+    def get_characteristic_by_uuid(self, path_prefix: str, char_uuid: str) -> AbstractObjectProxy:
+        path = self.get_path_from_uuid(
+            path_prefix, Interfaces.GATT_CHARACTERISTIC, char_uuid)
+        if path is not None:
+            return self.get_characteristic(path), path
         raise CharacteristicNotFound(char_uuid)
 
-    def _get_service_path(self, objects: list, prefix: str, uuid: str) -> str:
+    def get_characteristic(self, path: str) -> AbstractObjectProxy:
+        return self._bus.get_proxy(
+            service_name = BLUEZ_SERVICE_NAME,
+            object_path = path,
+            interface_name = Interfaces.GATT_CHARACTERISTIC,
+        )
+
+    def get_path_from_uuid(self, prefix: str, iface: str, uuid: str) -> str:
+        objects = self._manager.GetManagedObjects()
+        if prefix[-1] != "/":
+            prefix += "/"
+
         for path, ifaces in objects.items():
-            if not path.startswith(prefix + "/"):
+            if not path.startswith(prefix):
                 continue
-            service = ifaces.get(Interfaces.GATT_SERVICE)
-            if not service:
+            props = ifaces.get(iface)
+            if not props:
                 continue
-            if service.get("UUID").unpack() == uuid:
-                return path
+            obj_uuid = props.get("UUID")
+            if obj_uuid is None:
+                continue
+            if obj_uuid.unpack() != uuid:
+                continue
+            return path

@@ -259,7 +259,7 @@ Writing data
 ------------
 
 The process to write data is the same as for read. Create a `GATTRequest` object,
-and use the method `write_by_handle` to send the data. This method will issue a
+and use the method `write_by_uuid` to send the data. This method will issue a
 `write request`. As a note, data must be a bytes object. See the following
 example:
 
@@ -267,11 +267,11 @@ example:
 from gattlib import GATTRequester
 
 req = GATTRequester("00:11:22:33:44:55")
-req.write_by_handle(0x10, bytes([14, 4, 56]))
+req.write_by_uuid(0x10, bytes([14, 4, 56]))
 ```
 
 You can also use the `write_cmd()` to send a write command instead. It has the
-same parameters as `write_by_handle`: the handler id and a bytes object. As an
+same parameters as `write_by_uuid`: the uuid id and a bytes object. As an
 example:
 
 ```python
@@ -285,11 +285,10 @@ req.write_cmd(0x001e, bytes([16, 1, 4]))
 Receiving notifications
 -----------------------
 
-To receive notifications from remote device, you need to overwrite the
-`on_notification` method of `GATTRequester`. This method is called
-each time a notification arrives, and has two params: the handle where
-the notification was produced, and a string with the data that came in
-the notification event. The following is a brief example:
+To receive notifications from a remote device, you will need to enable them
+on each characteristic (that supports notifications or indications).
+
+The following is a brief example:
 
 ```python
 from gattlib import GATTRequester
