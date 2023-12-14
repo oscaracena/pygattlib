@@ -48,7 +48,7 @@ class DiscoveryService:
 
         self._devices = {}
         self._callback = callback
-        self._obs_id = self._bluez.connect(Signals.DEVICE_ADDED, self._on_new_device)
+        self._obs_id = self._bluez.connect_signal(Signals.DEVICE_ADDED, self._on_new_device)
         self._adapter.StartDiscovery()
         self._running = True
         self._log.info(" discover launched")
@@ -60,7 +60,7 @@ class DiscoveryService:
 
     def stop(self) -> None:
         self._adapter.StopDiscovery()
-        self._bluez.disconnect(self._obs_id)
+        self._bluez.disconnect_signal(self._obs_id)
         self._running = False
         self._log.info(" discover stopped")
 

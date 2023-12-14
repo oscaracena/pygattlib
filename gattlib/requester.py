@@ -6,14 +6,11 @@
 
 from threading import Thread
 from typing import Callable
-# from functools import partial
+from functools import partial
 
-from .dbus import (
-    BluezDBus, DBusError, Signals, AbstractObjectProxy,
-    Str, get_variant
-)
+from .dbus import BluezDBus, DBusError, Signals, AbstractObjectProxy
 from .exceptions import BTIOException
-from .utils import log, deprecated_args, wrap_exception
+from .utils import log, deprecated_args, wrap_exception, options
 
 
 class GATTRequester:
@@ -24,11 +21,12 @@ class GATTRequester:
         self._log = log.getChild("GATTReq")
 
         obj_path = self._device.prop("ObjectPath")
-        self._bluez.connect(
+        self._bluez.connect_signal(
             Signals.OBJECT_PROPERTIES_CHANGED(obj_path), self._on_props_changed)
 
         self._on_connect_cb = None
         self._on_fail_cb = None
+        self._notify_ids = {}
 
         # forward some methods
         self.prop = self._device.prop
@@ -39,12 +37,11 @@ class GATTRequester:
     @deprecated_args(channel_type=None, security_level=None, psm=None, mtu=None)
     @wrap_exception(DBusError, BTIOException)
     def connect(self, wait: bool = False, on_connect: Callable = None,
-                on_fail: Callable = None, on_disconnect: Callable = None) -> None:
+            on_fail: Callable = None, on_disconnect: Callable = None) -> None:
 
         self._on_connect_cb = on_connect
         self._on_fail_cb = on_fail
         self._on_disconnect_cb = on_disconnect
-        self._notify_id = None
 
         # FIXME: On wait=True, wait until 'Connected' becames True
 
@@ -86,7 +83,7 @@ class GATTRequester:
 
     @deprecated_args(uuid="char_uuid")
     def read_by_uuid(self, char_uuid: str) -> list:
-        char, path = self._get_characteristic(char_uuid)
+        char, path = self.get_characteristic(char_uuid)
         return char.ReadValue({})
 
     @deprecated_args(uuid="char_uuid", response="response_cb")
@@ -99,35 +96,47 @@ class GATTRequester:
         Thread(target=_do_read, daemon=True).start()
 
     def write_cmd_by_uuid(self, char_uuid: str, data: bytes) -> None:
-        char, path = self._get_characteristic(char_uuid)
-        return char.WriteValue(data, {"type": get_variant(Str, "command")})
+        char, path = self.get_characteristic(char_uuid)
+        return char.WriteValue(data, options({"type": "command"}))
 
     @deprecated_args(handle=None, notifications=None, indications=None)
-    def enable_notifications(self, char_uuid: str, filter: list = None) -> None:
-        char, path = self._get_characteristic(char_uuid)
+    def enable_notifications(self, char_uuid: str, callback: Callable,
+            filter: list = None) -> None:
+
+        char, path = self.get_characteristic(char_uuid)
         if 'notify' not in char.Flags and 'indicate' not in char.Flags:
             raise TypeError("This characteristic does not allow Notifications.")
 
         # FIXME: wait until 'Notifying' is True
-        # FIXME: enable filtered notifications
 
         self._bluez.listen_for_property_changes(path)
-        self._notify_id = self._bluez.connect(
+        notify_id = self._bluez.connect_signal(
             Signals.OBJECT_PROPERTIES_CHANGED(path),
-            # partial(self._on_filter_notification, filter=filter))
-            self.on_notification)
+            partial(self._on_filter_notification, callback=callback, filter=filter))
+        self._notify_ids[char_uuid] = notify_id
         char.StartNotify()
 
     def disable_notifications(self, char_uuid: str) -> None:
-        char, path = self._get_characteristic(char_uuid)
+        char, path = self.get_characteristic(char_uuid)
         self._bluez.stop_listening_for_property_changes(path)
-        if self._notify_id is not None:
-            self._bluez.disconnect(self._notify_id)
-            self._notify_id = None
+        notify_id = self._notify_ids.pop(char_uuid, None)
+        if notify_id is not None:
+            self._bluez.disconnect_signal(self._notify_id)
         char.StopNotify()
 
-    def on_notification(self, *args) -> None:
-        print(f"NOTIFICATION: {args}")
+    def _on_filter_notification(self, changed: dict, invalid: list,
+            callback: Callable, filter: list) -> None:
+
+        filt_changed = {}
+        filt_invalid = {}
+        for key in filter:
+            if key in invalid:
+                filt_invalid.append(key)
+            if key in changed:
+                filt_changed[key] = changed[key]
+
+        if filt_changed or filt_invalid:
+            callback(filt_changed, filt_invalid)
 
     def on_connect(self) -> None:
         if self._on_connect_cb:
@@ -143,9 +152,6 @@ class GATTRequester:
         if self._on_disconnect_cb:
             self._on_disconnect_cb()
 
-    # def _on_filter_notification(self, changed, invalid, filter):
-    #     print("FILTER NOTIFICATION", changed, invalid, filter)
-
     def _on_props_changed(self, changed: dict, invalid: list):
         connected = changed.get("Connected")
         if connected is None:
@@ -156,7 +162,12 @@ class GATTRequester:
         else:
             self.on_disconnect()
 
-    def _get_characteristic(self, char_uuid: str) -> AbstractObjectProxy:
+    def get_characteristic(self, char_uuid: str) -> AbstractObjectProxy:
+        """
+        Handy method to retrieve a D-Bus Interface proxy for the given characteristic.
+        Helpful in other gattlib components, not so useful for end-users, as they will
+        talk with D-Bus directly.
+        """
         path_prefix = self._device.prop("ObjectPath")
         return self._bluez.get_characteristic_by_uuid(path_prefix, char_uuid.lower())
 

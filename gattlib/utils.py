@@ -7,6 +7,11 @@
 import json
 import warnings
 import logging
+from functools import partial
+from weakref import WeakMethod, finalize, ref as weakref
+from inspect import ismethod
+
+from .dbus import get_variant
 
 
 # Code from: https://stackoverflow.com/a/56944256/870503
@@ -88,3 +93,47 @@ def wrap_exception(SrcException, DstException):
                 raise DstException(msg) from None
         return _deco
     return _wrapped
+
+
+def options(opts):
+    return {k:get_variant(type(v), v) for k,v in opts.items()}
+
+
+class WeakCallback:
+    """
+    Holds a method or a partial to a method using a weak reference.
+    """
+    def __init__(self, callback):
+        self._target_object = None
+        self._callable = None
+
+        if ismethod(callback):
+            self._callable = WeakMethod(callback)
+            self._target_object = weakref(callback.__self__)
+        elif isinstance(callback, partial):
+            if ismethod(callback.func):
+                func = WeakMethod(callback.func)
+                self._callable = partial(func, *callback.args, **callback.keywords)
+                self._target_object = weakref(callback.func.__self__)
+
+        if self._callable is None:
+            raise TypeError("Invalid callback type, use a method, or a partial with a method.")
+
+    def __call__(self, *args, **kwargs):
+        method = self._callable
+
+        if isinstance(method, WeakMethod):
+            method = method()
+        elif isinstance(method, partial):
+            func = method.func()
+            if func is None:
+                method = None
+            else:
+                method = partial(func, *method.args, **method.keywords)
+
+        if method is None:
+            raise RuntimeError("Referenced object does not exist anymore!")
+        return method(*args, **kwargs)
+
+    def finalize(self, func, *args, **kwargs):
+        return finalize(self._target_object(), func, *args, **kwargs)

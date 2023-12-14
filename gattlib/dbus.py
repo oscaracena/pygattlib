@@ -5,25 +5,24 @@
 # This software is under the terms of Apache License v2 or later.
 
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 from threading import Thread, RLock
 from uuid import uuid4
 from traceback import format_exc
 from functools import partial
-from weakref import WeakMethod, finalize
 from dasbus.connection import SystemMessageBus
 from dasbus.client.proxy import AbstractObjectProxy, get_object_path
 from dasbus.identifier import DBusServiceIdentifier
 from dasbus.loop import EventLoop
 
 # do not remove, used in requester.py
-from dasbus.typing import Str, get_variant
+from dasbus.typing import get_variant
 from dasbus.error import DBusError
 
 from .exceptions import (
     DeviceNotFound, AdapterNotFound, ServiceNotFound, CharacteristicNotFound
 )
-from .utils import log, jprint
+from .utils import log, jprint, WeakCallback
 
 
 ObserverId = str
@@ -70,7 +69,7 @@ class BluezDevice:
 
         SIGNAL = Signals.OBJECT_PROPERTIES_CHANGED(path)
         self._monitor.listen_for_property_changes(path)
-        self._monitor.connect(SIGNAL, self._on_properties_changed)
+        self._monitor.connect_signal(SIGNAL, self._on_properties_changed)
 
     def __del__(self):
         self._monitor.stop_listening_for_property_changes(self._object_path)
@@ -81,11 +80,13 @@ class BluezDevice:
     def _on_properties_changed(self, changed: dict, invalid: list) -> None:
         self._spec.update(changed)
 
-    def prop(self, name: str) -> str:
+    def prop(self, name: str, def_value: Optional[Any] = None) -> str:
         if name == "ObjectPath":
             return self._object_path
         value = self._spec.get(name)
         if value is None:
+            if def_value is not None:
+                return def_value
             raise KeyError(name)
         return value.unpack()
 
@@ -126,7 +127,7 @@ class BluezMonitor(Thread):
     def stop(self):
         self._loop.quit()
 
-    def connect(self, signal: str, callback: Callable) -> ObserverId:
+    def connect_signal(self, signal: str, callback: Callable) -> ObserverId:
         with self._obs_lock:
             observers = self._obs_channels.get(signal)
             if observers is None:
@@ -135,11 +136,11 @@ class BluezMonitor(Thread):
 
             oid = uuid4().hex
             observers.append(oid)
-            self._obs_clients[oid] = WeakMethod(callback)
-            finalize(callback.__self__, self._obs_clients.pop, oid).atexit = False
+            self._obs_clients[oid] = WeakCallback(callback)
+            self._obs_clients[oid].finalize(self._obs_clients.pop, oid).atexit = False
             return oid
 
-    def disconnect(self, observer: ObserverId) -> None:
+    def disconnect_signal(self, observer: ObserverId) -> None:
         with self._obs_lock:
             try:
                 self._obs_clients.pop(observer)
@@ -178,7 +179,6 @@ class BluezMonitor(Thread):
         self._log.debug(f" stop tracking properties of {path}")
 
     def _on_properties_changed(self, iface: str, changed: dict, invalid: list, path: str) -> None:
-        print("PROPS CHANGE", changed)
         SIGNAL = Signals.OBJECT_PROPERTIES_CHANGED(path)
         self._notify_observers(SIGNAL, changed, invalid)
 
@@ -214,8 +214,6 @@ class BluezMonitor(Thread):
                     observers.remove(oid)
                     continue
                 try:
-                    if isinstance(callback, WeakMethod):
-                        callback = callback()
                     callback(*args, **kwargs)
                 except Exception:
                     msg = format_exc()
@@ -237,8 +235,8 @@ class BluezDBus:
         self._monitor = BluezMonitor.get()
 
         # some method forwarding
-        self.connect = self._monitor.connect
-        self.disconnect = self._monitor.disconnect
+        self.connect_signal = self._monitor.connect_signal
+        self.disconnect_signal = self._monitor.disconnect_signal
         self.listen_for_property_changes = self._monitor.listen_for_property_changes
         self.stop_listening_for_property_changes = self._monitor.stop_listening_for_property_changes
 
