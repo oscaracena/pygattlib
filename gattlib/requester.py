@@ -121,7 +121,7 @@ class GATTRequester:
         self._bluez.stop_listening_for_property_changes(path)
         notify_id = self._notify_ids.pop(char_uuid, None)
         if notify_id is not None:
-            self._bluez.disconnect_signal(self._notify_id)
+            self._bluez.disconnect_signal(notify_id)
         char.StopNotify()
 
     def _on_filter_notification(self, changed: dict, invalid: list,
