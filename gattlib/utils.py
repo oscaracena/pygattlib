@@ -38,16 +38,17 @@ class LoggingCustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-_ch = logging.StreamHandler()
-_ch.setFormatter(LoggingCustomFormatter())
+def get_colour_logger(name):
+    sh = logging.StreamHandler()
+    sh.setFormatter(LoggingCustomFormatter())
 
-log = logging.getLogger("PyGattLib")
-log.propagate = False
-log.setLevel(logging.DEBUG)
-log.addHandler(_ch)
+    log = logging.getLogger(name)
+    log.propagate = False
+    log.addHandler(sh)
+    return log
 
-# NOTE: remove this in production
-logging.basicConfig()
+
+log = get_colour_logger("PyGattLib")
 
 
 def jprint(data):

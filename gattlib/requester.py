@@ -95,6 +95,10 @@ class GATTRequester:
 
         Thread(target=_do_read, daemon=True).start()
 
+    def write_by_uuid(self, char_uuid: str, data: bytes) -> None:
+        char, path = self.get_characteristic(char_uuid)
+        return char.WriteValue(data, options({"type": "request"}))
+
     def write_cmd_by_uuid(self, char_uuid: str, data: bytes) -> None:
         char, path = self.get_characteristic(char_uuid)
         return char.WriteValue(data, options({"type": "command"}))
