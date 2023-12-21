@@ -9,7 +9,7 @@ from functools import partial
 
 from .dbus import BluezDBus, DBusError, Signals, AbstractObjectProxy
 from .exceptions import BTIOException
-from .utils import log, deprecated_args, wrap_exception, options
+from .utils import log, deprecated_args, deprecated_method, wrap_exception, options
 
 
 class GATTRequester:
@@ -102,9 +102,15 @@ class GATTRequester:
         char, path = self.get_characteristic(char_uuid)
         return char.WriteValue(data, options({"type": "command"}))
 
+    @deprecated_method(replaced_by="write_by_uuid")
+    def write_by_handle(self) -> None: pass
+
+    @deprecated_method(replaced_by="write_cmd_by_uuid")
+    def write_cmd(self) -> None: pass
+
     @deprecated_args(handle=None, notifications=None, indications=None)
     def enable_notifications(self, char_uuid: str, callback: Callable,
-            filter: list = None) -> None:
+            filter: list = ("Value",)) -> None:
 
         char, path = self.get_characteristic(char_uuid)
         if 'notify' not in char.Flags and 'indicate' not in char.Flags:
@@ -193,8 +199,6 @@ class GATTRequester:
     # void read_by_handle_async(uint16_t handle, GATTResponse* response);
 	# boost::python::object read_by_handle(uint16_t handle);
 	# void write_by_handle_async(uint16_t handle, std::string data, GATTResponse* response);
-    # boost::python::object write_by_handle(uint16_t handle, std::string data);
-	# void write_cmd(uint16_t handle, std::string data);
 
     # void enable_notifications_async(uint16_t handle, bool notifications, bool indications, GATTResponse* response);
 

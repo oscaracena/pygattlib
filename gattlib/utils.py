@@ -80,6 +80,15 @@ def deprecated_args(**fields):
     return _deprecated_decorator
 
 
+def deprecated_method(replaced_by=None):
+    def _deprecated_decorator(fn):
+        def _decorator(*args, **kwargs):
+            msg = f"This method is not available anymore. Please, use '{replaced_by}' instead."
+            raise DeprecationWarning(msg)
+        return _decorator
+    return _deprecated_decorator
+
+
 # This is a decorator used to convert exception domains (from SrcException to DstException)
 # Use it when the code may raise an unknown exception for the user, to wrap it directly
 # to a known exception class.
