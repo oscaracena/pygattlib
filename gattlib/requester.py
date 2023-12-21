@@ -132,11 +132,15 @@ class GATTRequester:
 
         filt_changed = {}
         filt_invalid = {}
-        for key in filter:
-            if key in invalid:
-                filt_invalid.append(key)
-            if key in changed:
-                filt_changed[key] = changed[key]
+        if filter is None:
+            filt_changed = changed
+            filt_invalid = invalid
+        else:
+            for key in filter:
+                if key in invalid:
+                    filt_invalid.append(key)
+                if key in changed:
+                    filt_changed[key] = changed[key]
 
         if filt_changed or filt_invalid:
             callback(filt_changed, filt_invalid)
