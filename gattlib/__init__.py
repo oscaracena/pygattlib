@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
 
 # Copyright (C) 2023, Oscar Acena <oscaracena@gmail.com>
