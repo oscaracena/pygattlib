@@ -136,7 +136,7 @@ class BluezMonitor(Thread):
             oid = uuid4().hex
             observers.append(oid)
             self._obs_clients[oid] = WeakCallback(callback)
-            self._obs_clients[oid].finalize(self._obs_clients.pop, oid).atexit = False
+            self._obs_clients[oid].finalize(self.disconnect_signal, oid).atexit = False
             return oid
 
     def disconnect_signal(self, observer: ObserverId) -> None:

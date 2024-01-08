@@ -109,8 +109,11 @@ class GATTRequester:
     def write_cmd(self) -> None: pass
 
     @deprecated_args(handle=None, notifications=None, indications=None)
-    def enable_notifications(self, char_uuid: str, callback: Callable,
-            filter: list = ("Value",)) -> None:
+    def enable_notifications(self, char_uuid: str, callback: Callable = None,
+            filter: list = ("value",)) -> None:
+
+        if callback is None:
+            callback = self.on_notification
 
         char, path = self.get_characteristic(char_uuid)
         if 'notify' not in char.Flags and 'indicate' not in char.Flags:
@@ -136,20 +139,27 @@ class GATTRequester:
     def _on_filter_notification(self, changed: dict, invalid: list,
             callback: Callable, filter: list) -> None:
 
-        filt_changed = {}
-        filt_invalid = {}
+        # we use lower case key names
+        changed = {k.lower():v for k, v in changed.items()}
+        invalid = [k.lower() for k in invalid]
+
+        kwargs = {}
         if filter is None:
-            filt_changed = changed
-            filt_invalid = invalid
+            kwargs = {k:v.unpack() for k, v in changed.items()}
+            if invalid:
+                kwargs.update({k:None for k in invalid})
         else:
             for key in filter:
                 if key in invalid:
-                    filt_invalid.append(key)
-                if key in changed:
-                    filt_changed[key] = changed[key]
+                    kwargs[key] = None
+                elif key in changed:
+                    kwargs[key] = changed[key].unpack()
 
-        if filt_changed or filt_invalid:
-            callback(filt_changed, filt_invalid)
+        if kwargs:
+            callback(**kwargs)
+
+    def on_notification(self, **kwargs):
+        raise NotImplementedError("You must overwrite this method!")
 
     def on_connect(self) -> None:
         if self._on_connect_cb:

@@ -285,21 +285,39 @@ req.write_cmd(0x001e, bytes([16, 1, 4]))
 Receiving notifications
 -----------------------
 
+FIXME: update!
+
 To receive notifications from a remote device, you will need to enable them
 on each characteristic (that supports notifications or indications).
 
-The following is a brief example:
+For that, you have two options: 1) provide a callback function:
+
+```python
+from gattlib import GATTRequester
+
+def on_notification(value):
+    print(f"- notification arrived, value: {value}")
+
+char_uuid = "00002a00-0000-1000-8000-00805f9b34fb"
+req = GATTRequester("00:11:22:33:44:55")
+req.enable_notifications(char_uuid, on_notification)
+```
+
+or 2) override the `on_notification()` method of `GATTRequester`:
 
 ```python
 from gattlib import GATTRequester
 
 class Requester(GATTRequester):
-    def on_notification(self, handle, data):
-        print("- notification on handle: {}\n".format(handle))
+    def on_notification(self, value):
+        print(f"- notification arrived, value: {value}")
+
+char_uuid = "00002a00-0000-1000-8000-00805f9b34fb"
+req = GATTRequester("00:11:22:33:44:55")
+req.enable_notifications(char_uuid)
 ```
 
-You can receive indications as well. Just overwrite the method
-`on_indication` of `GATTRequester`.
+This second option is not recommended when you enable notifications on different characteristics, as they will share the same callback, and you will have trouble filtering the notification source. In that case, set a different callback, or use a `partial` to add a parameter with the source id.
 
 
 Troubleshooting
