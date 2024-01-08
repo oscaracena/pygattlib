@@ -1,3 +1,9 @@
+gattlib-dbus (24.1.8-1) unstable; urgency=low
+
+  * New release, fix on_notification params
+
+ -- Oscar Aceña Herrera <oscaracena@gmail.com>  Mon, 08 Jan 2024 15:40:37 +0100
+
 gattlib-dbus (23.12.21-1) unstable; urgency=low
 
   * Initial release

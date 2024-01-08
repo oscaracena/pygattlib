@@ -6,7 +6,7 @@
 from .services import DiscoveryService
 from .exceptions import (
     BTIOException, BTBaseException, GATTException,
-    AdapterNotFound, DeviceNotFound
+    AdapterNotFound, DeviceNotFound, CharacteristicNotFound
 )
 from .requester import GATTRequester
 
@@ -20,4 +20,5 @@ __all__ = [
     GATTException,
     AdapterNotFound,
     DeviceNotFound,
+    CharacteristicNotFound,
 ]

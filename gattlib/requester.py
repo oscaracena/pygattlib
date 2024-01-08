@@ -49,7 +49,7 @@ class GATTRequester:
                 already_connected = self.is_connected()
                 self._device.Connect()
 
-                # NOTE: If it was already connected, the property will not change, and
+                # If it was already connected, the property will not change, and
                 # the callback will not be called. Call it here.
                 if already_connected:
                     self.on_connect()
@@ -60,6 +60,11 @@ class GATTRequester:
             Thread(target=_do_connect, daemon=True).start()
         else:
             _do_connect()
+
+    def pair(self):
+        """NOTE: This method will not work unless there is a pairing agent open. Use with
+        caution. Or even better, for pairing, use the system's agent."""
+        self._device.Pair()
 
     def is_connected(self) -> bool:
         return self._device.prop("Connected")
