@@ -9,4 +9,9 @@ build
 dist
 .pc
 
-OLD
+
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/python3-gattlib-dbus.substvars
+debian/python3-gattlib-dbus/

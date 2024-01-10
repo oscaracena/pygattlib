@@ -24,6 +24,7 @@ class GATTRequester:
             Signals.OBJECT_PROPERTIES_CHANGED(obj_path), self._on_props_changed)
 
         self._on_connect_cb = None
+        self._on_disconnect_cb = None
         self._on_fail_cb = None
         self._notify_ids = {}
 
@@ -63,7 +64,7 @@ class GATTRequester:
 
     def pair(self):
         """NOTE: This method will not work unless there is a pairing agent open. Use with
-        caution. Or even better, for pairing, use the system's agent."""
+        caution. Or even better, for pairing, use the system's agent directly."""
         self._device.Pair()
 
     def is_connected(self) -> bool:
