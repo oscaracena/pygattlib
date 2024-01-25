@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
 
-# Copyright (C) 2023, Oscar Acena <oscaracena@gmail.com>
+# Copyright (C) 2023,2024 Oscar Acena <oscaracena@gmail.com>
 # This software is under the terms of Apache License v2 or later.
 
 import time
@@ -8,7 +8,7 @@ from traceback import format_exc
 from typing import Optional, Dict, Callable
 
 from .dbus import BluezDBus, Signals
-from .utils import log, deprecated_args
+from .utils import log, deprecated_args, options
 
 
 Name = str
@@ -21,6 +21,7 @@ class DiscoveryService:
     def __init__(self, adapter: str = "hci0"):
         self._bluez = BluezDBus()
         self._adapter = self._bluez.find_adapter(adapter)
+        self._adapter.SetDiscoveryFilter(options({"Transport": "le"}))
         self._log = log.getChild("DS")
 
         self._devices = {}
